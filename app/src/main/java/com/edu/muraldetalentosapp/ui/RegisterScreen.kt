@@ -231,7 +231,9 @@ fun RegisterFormFields(viewModel: AuthViewModel, authState: AuthState) {
             disabledContainerColor = Color(0xFFF3F3F5),
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent
+            disabledIndicatorColor = Color.Transparent,
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.Black
         ),
         maxLines = 4
     )
@@ -315,7 +317,9 @@ fun RegisterTextField(
             disabledContainerColor = Color(0xFFF3F3F5),
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent
+            disabledIndicatorColor = Color.Transparent,
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.Black
         ),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         singleLine = true
