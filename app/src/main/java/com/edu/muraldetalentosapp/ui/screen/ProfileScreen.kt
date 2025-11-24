@@ -103,6 +103,7 @@ class ProfileViewModel : ViewModel() {
         } else {
             println("Dados inválidos, não foi possível salvar.")
         }
+
     }
 }
 
@@ -110,7 +111,9 @@ class ProfileViewModel : ViewModel() {
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(),
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {}
+
 ) {
     val state = viewModel.uiState
     val context = LocalContext.current
@@ -204,7 +207,10 @@ fun ProfileScreen(
 
             // Botão Salvar
             Button(
-                onClick = viewModel::saveData,
+                onClick = {
+                    viewModel::saveData
+                    onNavigateToHome
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

@@ -24,6 +24,10 @@ class AuthViewModel : ViewModel() {
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     fun signIn(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Email e senha não podem estar em branco.")
+            return
+        }
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
@@ -31,15 +35,19 @@ class AuthViewModel : ViewModel() {
                 result.user?.let {
                     _authState.value = AuthState.Success(it)
                 } ?: run {
-                    _authState.value = AuthState.Error("Login failed: User is null")
+                    _authState.value = AuthState.Error("Login falhou: usuário nulo")
                 }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Login failed")
+                _authState.value = AuthState.Error(e.message ?: "Login falhou")
             }
         }
     }
 
     fun signUp(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Email e senha não podem estar em branco.")
+            return
+        }
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
@@ -47,14 +55,19 @@ class AuthViewModel : ViewModel() {
                 result.user?.let {
                     _authState.value = AuthState.Success(it)
                 } ?: run {
-                    _authState.value = AuthState.Error("Sign up failed: User is null")
+                    _authState.value = AuthState.Error("Cadastro falhou: usuário nulo")
                 }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Sign up failed")
+                _authState.value = AuthState.Error(e.message ?: "Cadastro falhou")
             }
         }
     }
     
+    fun signOut() {
+        auth.signOut()
+        _authState.value = AuthState.Idle
+    }
+
     fun resetState() {
         _authState.value = AuthState.Idle
     }
