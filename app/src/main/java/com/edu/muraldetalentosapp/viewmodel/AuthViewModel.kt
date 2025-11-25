@@ -23,6 +23,18 @@ class AuthViewModel : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    init {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            _authState.value = AuthState.Success(currentUser)
+        }
+    }
+
+    fun signOut() {
+        auth.signOut()
+        _authState.value = AuthState.Idle
+    }
+
     fun signIn(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -39,13 +51,19 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun signUp(email: String, password: String) {
+    fun signUp(email: String, password: String, name: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
-                result.user?.let {
-                    _authState.value = AuthState.Success(it)
+                result.user?.let { user ->
+                    val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                        .setDisplayName(name)
+                        .build()
+                    user.updateProfile(profileUpdates).await()
+                    // Refresh user to get the updated display name
+                    user.reload().await()
+                    _authState.value = AuthState.Success(auth.currentUser!!)
                 } ?: run {
                     _authState.value = AuthState.Error("Sign up failed: User is null")
                 }

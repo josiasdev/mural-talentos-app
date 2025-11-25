@@ -57,7 +57,7 @@ import com.edu.muraldetalentosapp.viewmodel.AuthState
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
     onNavigateToRegister: () -> Unit = {},
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel
 ) {
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
@@ -67,7 +67,6 @@ fun LoginScreen(
             is AuthState.Success -> {
                 Toast.makeText(context, "Login realizado com sucesso!", Toast.LENGTH_SHORT).show()
                 onLoginSuccess()
-                viewModel.resetState()
             }
             is AuthState.Error -> {
                 Toast.makeText(context, (authState as AuthState.Error).message, Toast.LENGTH_SHORT).show()
@@ -83,8 +82,8 @@ fun LoginScreen(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFFE0F2FE), // Light blueish white approximation
-                        Color(0xFFDBEAFE)  // Slightly darker blue approximation
+                        Color(0xFFE0F2FE),
+                        Color(0xFFDBEAFE)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(0f, Float.POSITIVE_INFINITY)
@@ -98,7 +97,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo
+
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Mural de Talentos Logo",
@@ -123,7 +122,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Login Card
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -149,7 +148,7 @@ fun LoginScreen(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Toggle Button
+
                     Text(
                         text = "Tipo de Conta",
                         fontSize = 14.sp,
@@ -181,11 +180,11 @@ fun LoginScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Form Fields
+
                     var email by remember { mutableStateOf("") }
                     var password by remember { mutableStateOf("") }
 
-                    // Email
+
                     Text(
                         text = "E-mail",
                         fontSize = 14.sp,
@@ -216,7 +215,7 @@ fun LoginScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Password
+
                     Text(
                         text = "Senha",
                         fontSize = 14.sp,
@@ -248,7 +247,7 @@ fun LoginScreen(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Buttons
+
                     Button(
                         onClick = { viewModel.signIn(email, password) },
                         modifier = Modifier
@@ -289,6 +288,6 @@ fun LoginScreen(
 @Composable
 fun LoginScreenPreview() {
     MaterialTheme {
-        LoginScreen()
+        // LoginScreen(viewModel = AuthViewModel())
     }
 }

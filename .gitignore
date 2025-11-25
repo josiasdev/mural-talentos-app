@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Google Services
+google-services.json
+
+# Mock Screen
+**/ui/MockNavigationScreen.kt
