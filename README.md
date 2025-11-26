@@ -134,5 +134,5 @@ Para manter a organização e a qualidade do código, seguimos os seguintes padr
 | --- | --- | --- |
 | Francisco Josias da Silva Batista | 542167 | [josiasdev](https://github.com/josiasdev) |
 | Cristiano Mendes da Silva | 558382 | [CristianoMends](https://github.com/CristianoMends) |
-| Paulo Victor Costa Ferreira | 557331 | *[Link-GitHub]* |
+| Paulo Victor Costa Ferreira | 557331 | [VictorFCos](https://github.com/VictorFCos)]* |
 | Guilherme Damasceno Nobre | 511329 | *[Link-GitHub]* |
