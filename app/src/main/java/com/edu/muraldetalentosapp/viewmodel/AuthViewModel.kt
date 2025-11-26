@@ -43,17 +43,27 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun signUp(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _authState.value = AuthState.Error("Email e senha não podem estar em branco.")
+    fun signUp(email: String, password: String, name: String) {
+        if (email.isBlank() || password.isBlank() || name.isBlank()) {
+            _authState.value = AuthState.Error("Nome, email e senha não podem estar em branco.")
             return
         }
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
-                result.user?.let {
-                    _authState.value = AuthState.Success(it)
+                result.user?.let { user ->
+                    try {
+                        val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                            .setDisplayName(name)
+                            .build()
+                        user.updateProfile(profileUpdates).await()
+                    } catch (e: Exception) {
+                        // Log error or handle it, but we still consider signup successful for now
+                        // or we could fail. Usually updating profile failure shouldn't block sign up success entirely
+                        // but for consistency let's just proceed.
+                    }
+                    _authState.value = AuthState.Success(user)
                 } ?: run {
                     _authState.value = AuthState.Error("Cadastro falhou: usuário nulo")
                 }

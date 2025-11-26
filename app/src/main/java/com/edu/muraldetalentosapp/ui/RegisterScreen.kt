@@ -36,20 +36,35 @@ import com.edu.muraldetalentosapp.viewmodel.AuthState
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel
 ) {
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
+
+
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+
+
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var about by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
     LaunchedEffect(authState) {
         when (authState) {
             is AuthState.Success -> {
                 Toast.makeText(context, "Conta criada com sucesso!", Toast.LENGTH_SHORT).show()
                 onRegisterSuccess()
-                viewModel.resetState()
             }
             is AuthState.Error -> {
-                Toast.makeText(context, (authState as AuthState.Error).message, Toast.LENGTH_SHORT).show()
+                val message = (authState as AuthState.Error).message
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
             }
             else -> {}
@@ -62,8 +77,8 @@ fun RegisterScreen(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFFE0F2FE), // Light blueish white approximation
-                        Color(0xFFDBEAFE)  // Slightly darker blue approximation
+                        Color(0xFFE0F2FE),
+                        Color(0xFFDBEAFE)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(0f, Float.POSITIVE_INFINITY)
@@ -75,7 +90,7 @@ fun RegisterScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Top Bar
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -98,11 +113,11 @@ fun RegisterScreen(
                 )
             }
 
-            // Registration Card
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f), // Fill remaining space but allow scrolling inside if needed
+                    .weight(1f),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -126,7 +141,7 @@ fun RegisterScreen(
                         modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                     )
 
-                    // Account Type Toggle
+
                     Text(
                         text = "Tipo de Conta",
                         fontSize = 14.sp,
@@ -158,11 +173,178 @@ fun RegisterScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Form Fields
-                    RegisterFormFields(viewModel, authState)
+
+                    RegisterTextField(
+                        label = "Nome Completo",
+                        value = name,
+                        onValueChange = { 
+                            name = it
+                            if (nameError != null) nameError = null
+                        },
+                        placeholder = "João Silva",
+                        errorMessage = nameError
+                    )
                     
+                    Spacer(modifier = Modifier.height(16.dp))
+
+
+                    RegisterTextField(
+                        label = "E-mail",
+                        value = email,
+                        onValueChange = { 
+                            email = it
+                            if (emailError != null) emailError = null
+                        },
+                        placeholder = "seu@email.com",
+                        errorMessage = emailError
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+
+                    RegisterTextField(
+                        label = "Telefone",
+                        value = phone,
+                        onValueChange = { input ->
+                            val digits = input.filter { it.isDigit() }.take(11)
+                            var formatted = ""
+                            if (digits.isNotEmpty()) {
+                                formatted = "(" + digits.substring(0, minOf(2, digits.length))
+                                if (digits.length > 2) {
+                                    formatted += ") " + digits.substring(2, minOf(7, digits.length))
+                                    if (digits.length > 7) {
+                                        formatted += "-" + digits.substring(7, digits.length)
+                                    }
+                                }
+                            }
+                            phone = formatted
+                            if (phoneError != null) phoneError = null
+                        },
+                        placeholder = "(11) 99999-9999",
+                        errorMessage = phoneError
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+
+                    Text(
+                        text = "Sobre Você",
+                        fontSize = 14.sp,
+                        color = Color(0xFF0A0A0A),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    TextField(
+                        value = about,
+                        onValueChange = { about = it },
+                        placeholder = { Text("Conte um pouco sobre sua experiência...", color = Color(0xFF717182)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFF3F3F5),
+                            unfocusedContainerColor = Color(0xFFF3F3F5),
+                            disabledContainerColor = Color(0xFFF3F3F5),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black
+                        ),
+                        maxLines = 4
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+
+                    RegisterTextField(
+                        label = "Senha",
+                        value = password,
+                        onValueChange = { 
+                            password = it
+                            if (passwordError != null) passwordError = null
+                        },
+                        placeholder = "••••••••",
+                        isPassword = true,
+                        errorMessage = passwordError
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+
+                    RegisterTextField(
+                        label = "Confirmar Senha",
+                        value = confirmPassword,
+                        onValueChange = { 
+                            confirmPassword = it
+                            if (confirmPasswordError != null) confirmPasswordError = null
+                        },
+                        placeholder = "••••••••",
+                        isPassword = true,
+                        errorMessage = confirmPasswordError
+                    )
+
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
+
+                    Button(
+                        onClick = { 
+
+                            var isValid = true
+                            
+                            if (name.isBlank()) {
+                                nameError = "Nome é obrigatório"
+                                isValid = false
+                            }
+                            
+                            if (email.isBlank()) {
+                                emailError = "E-mail é obrigatório"
+                                isValid = false
+                            } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                                emailError = "E-mail inválido"
+                                isValid = false
+                            }
+                            
+                            if (phone.isBlank()) {
+                                phoneError = "Telefone é obrigatório"
+                                isValid = false
+                            }
+                            
+                            if (password.isBlank()) {
+                                passwordError = "Senha é obrigatória"
+                                isValid = false
+                            } else if (password.length < 6) {
+                                passwordError = "A senha deve ter pelo menos 6 caracteres"
+                                isValid = false
+                            }
+                            
+                            if (confirmPassword.isBlank()) {
+                                confirmPasswordError = "Confirmação de senha é obrigatória"
+                                isValid = false
+                            } else if (password != confirmPassword) {
+                                confirmPasswordError = "As senhas não coincidem"
+                                isValid = false
+                            }
+
+                            if (isValid) {
+                                viewModel.signUp(email, password, name)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF193CB8),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = if (authState is AuthState.Loading) "Criando Conta..." else "Criar Conta",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                 }
@@ -172,158 +354,60 @@ fun RegisterScreen(
 }
 
 @Composable
-fun RegisterFormFields(viewModel: AuthViewModel, authState: AuthState) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var about by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
-    // Name
-    RegisterTextField(
-        label = "Nome Completo",
-        value = name,
-        onValueChange = { name = it },
-        placeholder = "João Silva"
-    )
-    
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Email
-    RegisterTextField(
-        label = "E-mail",
-        value = email,
-        onValueChange = { email = it },
-        placeholder = "seu@email.com"
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Phone
-    RegisterTextField(
-        label = "Telefone",
-        value = phone,
-        onValueChange = { phone = it },
-        placeholder = "(11) 99999-9999"
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // About
-    Text(
-        text = "Sobre Você",
-        fontSize = 14.sp,
-        color = Color(0xFF0A0A0A),
-        modifier = Modifier.padding(bottom = 8.dp)
-    )
-    TextField(
-        value = about,
-        onValueChange = { about = it },
-        placeholder = { Text("Conte um pouco sobre sua experiência...", color = Color(0xFF717182)) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFF3F3F5),
-            unfocusedContainerColor = Color(0xFFF3F3F5),
-            disabledContainerColor = Color(0xFFF3F3F5),
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent
-        ),
-        maxLines = 4
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Password
-    RegisterTextField(
-        label = "Senha",
-        value = password,
-        onValueChange = { password = it },
-        placeholder = "••••••••",
-        isPassword = true
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Confirm Password
-    RegisterTextField(
-        label = "Confirmar Senha",
-        value = confirmPassword,
-        onValueChange = { confirmPassword = it },
-        placeholder = "••••••••",
-        isPassword = true
-    )
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    // Create Account Button
-    Button(
-        onClick = { 
-            if (password == confirmPassword) {
-                viewModel.signUp(email, password) 
-            } else {
-                // Handle password mismatch (could show a toast or error text)
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF193CB8),
-            contentColor = Color.White
-        )
-    ) {
-        Text(
-            text = if (authState is AuthState.Loading) "Criando Conta..." else "Criar Conta",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
 fun RegisterTextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    isPassword: Boolean = false
+    isPassword: Boolean = false,
+    errorMessage: String? = null
 ) {
-    Text(
-        text = label,
-        fontSize = 14.sp,
-        color = Color(0xFF0A0A0A),
-        modifier = Modifier.padding(bottom = 8.dp)
-    )
-    
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = Color(0xFF717182)) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFF3F3F5),
-            unfocusedContainerColor = Color(0xFFF3F3F5),
-            disabledContainerColor = Color(0xFFF3F3F5),
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent
-        ),
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        singleLine = true
-    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = Color(0xFF0A0A0A),
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder, color = Color(0xFF717182)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFFF3F3F5),
+                unfocusedContainerColor = Color(0xFFF3F3F5),
+                disabledContainerColor = Color(0xFFF3F3F5),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                errorContainerColor = Color(0xFFFFF0F0),
+                errorIndicatorColor = Color.Red
+            ),
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            singleLine = true,
+            isError = errorMessage != null
+        )
+        
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                color = Color.Red,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
 }
 
 @Preview
 @Composable
 fun RegisterScreenPreview() {
-    RegisterScreen()
+    // RegisterScreen(viewModel = AuthViewModel())
 }

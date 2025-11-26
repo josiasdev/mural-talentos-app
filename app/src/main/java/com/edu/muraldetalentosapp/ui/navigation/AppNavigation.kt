@@ -19,6 +19,8 @@ sealed class Screen(val route: String) {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val viewModel: com.edu.muraldetalentosapp.viewmodel.AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    
     NavHost(navController = navController, startDestination = Screen.Login.route) {
         composable(Screen.Login.route) {
             LoginScreen(
@@ -31,7 +33,8 @@ fun AppNavigation() {
                 },
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
-                }
+                },
+                viewModel = viewModel
             )
         }
         composable(Screen.Register.route) {
@@ -41,7 +44,8 @@ fun AppNavigation() {
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                viewModel = viewModel
             )
         }
 
