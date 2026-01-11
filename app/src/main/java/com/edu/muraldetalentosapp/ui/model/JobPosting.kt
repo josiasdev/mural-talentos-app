@@ -7,5 +7,7 @@ data class JobPosting(
     val location: String,
     val salaryRange: String,
     val publishedAt: String,
-    var isApplied: Boolean = false
+    var isApplied: Boolean = false,
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0
 )

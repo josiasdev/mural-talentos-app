@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.edu.muraldetalentosapp.ui.LoginScreen
 import com.edu.muraldetalentosapp.ui.RegisterScreen
 import com.edu.muraldetalentosapp.ui.screen.HomeScreen
+import com.edu.muraldetalentosapp.ui.screen.JobMapScreen
 import com.edu.muraldetalentosapp.ui.screen.ProfileScreen
 
 sealed class Screen(val route: String) {
@@ -14,12 +15,14 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object Profile : Screen("profile")
     object Home : Screen("home")
+    object Map : Screen("map")
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val viewModel: com.edu.muraldetalentosapp.viewmodel.AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val authViewModel: com.edu.muraldetalentosapp.viewmodel.AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val jobsViewModel: com.edu.muraldetalentosapp.viewmodel.JobsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     
     NavHost(navController = navController, startDestination = Screen.Login.route) {
         composable(Screen.Login.route) {
@@ -34,7 +37,7 @@ fun AppNavigation() {
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
                 },
-                viewModel = viewModel
+                viewModel = authViewModel
             )
         }
         composable(Screen.Register.route) {
@@ -45,14 +48,29 @@ fun AppNavigation() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                viewModel = viewModel
+                viewModel = authViewModel
             )
         }
 
         composable(Screen.Home.route) {
-            HomeScreen(onNavigateToProfile = {
-                navController.navigate(Screen.Profile.route)
-            })
+            HomeScreen(
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                },
+                onNavigateToMap = {
+                    navController.navigate(Screen.Map.route)
+                },
+                viewModel = jobsViewModel
+            )
+        }
+
+        composable(Screen.Map.route) {
+            JobMapScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                viewModel = jobsViewModel
+            )
         }
 
         composable(Screen.Profile.route) {
