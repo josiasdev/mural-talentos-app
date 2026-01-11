@@ -40,11 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-
-val BluePrimary = Color(0xFF1E40AF)
-val BackgroundGray = Color(0xFFF3F4F6)
-val TextGray = Color(0xFF6B7280)
-val IconBlue = Color(0xFF3B82F6)
+import com.edu.muraldetalentosapp.ui.theme.BluePrimary
+import com.edu.muraldetalentosapp.ui.theme.TextGray
+import com.edu.muraldetalentosapp.ui.theme.IconBlue
+import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
 
 data class ProfileUiState(
     val fullName: String = "",

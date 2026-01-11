@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,85 +47,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edu.muraldetalentosapp.ui.components.JobCard
 import com.edu.muraldetalentosapp.ui.model.JobPosting
+import com.edu.muraldetalentosapp.ui.theme.BluePrimary
+import com.edu.muraldetalentosapp.ui.theme.TextGray
+import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
+import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun HomeScreen(onNavigateToProfile: () -> Unit = {}) {
+fun HomeScreen(
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToMap: () -> Unit = {},
+    viewModel: JobsViewModel
+) {
 
     var search by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
     var isFilterExpanded by remember { mutableStateOf(false) }
 
-    var jobs by remember {
-        mutableStateOf(
-            listOf(
-                JobPosting(
-                    title = "Vendedor Interno",
-                    company = "Loja Magazine",
-                    type = "CLT",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 1.800 - R$ 2.500",
-                    publishedAt = "30/09/2025"
-                ),
-                JobPosting(
-                    title = "Repositor de Mercadorias",
-                    company = "Supermercado Central",
-                    type = "CLT",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 1.600 - R$ 2.000",
-                    publishedAt = "04/10/2025"
-                ),
-                JobPosting(
-                    title = "Desenvolvedor Android Pleno",
-                    company = "Startup Vision",
-                    type = "PJ",
-                    location = "Remoto",
-                    salaryRange = "R$ 7.000 - R$ 9.000",
-                    publishedAt = "01/10/2025"
-                ),
-                JobPosting(
-                    title = "Auxiliar Administrativo",
-                    company = "Escritório Contábil Futuro",
-                    type = "Estágio",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 800",
-                    publishedAt = "10/10/2025"
-                ),
-                JobPosting(
-                    title = "Garçom / Garçonete",
-                    company = "Restaurante Sabor do Sertão",
-                    type = "CLT",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 1.500 + gorjetas",
-                    publishedAt = "11/10/2025"
-                ),
-                JobPosting(
-                    title = "Técnico de Enfermagem",
-                    company = "Hospital Eudásio Barroso",
-                    type = "Concurso",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 2.200 - R$ 3.000",
-                    publishedAt = "12/10/2025"
-                ),
-                JobPosting(
-                    title = "Professor de Inglês",
-                    company = "Escola de Idiomas Wize",
-                    type = "Autônomo",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 30/hora",
-                    publishedAt = "13/10/2025"
-                ),
-                JobPosting(
-                    title = "Caixa de Loja",
-                    company = "Farmácia Pague Menos",
-                    type = "CLT",
-                    location = "Quixadá, CE",
-                    salaryRange = "R$ 1.412",
-                    publishedAt = "14/10/2025"
-                )
-            )
-        )
-    }
+    val jobs = viewModel.jobs
 
     val jobTypes = jobs.map { it.type }.distinct()
     val locations = jobs.map { it.location }.distinct()
@@ -165,9 +106,7 @@ fun HomeScreen(onNavigateToProfile: () -> Unit = {}) {
     val tabs = listOf("Todas ($allJobsCount)", "Candidaturas ($appliedJobsCount)")
 
     val onApplyClick = { clickedJob: JobPosting ->
-        jobs = jobs.map {
-            if (it.title == clickedJob.title) it.copy(isApplied = true) else it
-        }
+        viewModel.toggleApplication(clickedJob.title)
     }
 
     val displayedJobs = when (selectedTab) {
@@ -187,6 +126,9 @@ fun HomeScreen(onNavigateToProfile: () -> Unit = {}) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToMap) {
+                        Icon(Icons.Default.Map, contentDescription = "Mapa", tint = BluePrimary)
+                    }
                     IconButton(onClick = onNavigateToProfile) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = BluePrimary)
                     }
