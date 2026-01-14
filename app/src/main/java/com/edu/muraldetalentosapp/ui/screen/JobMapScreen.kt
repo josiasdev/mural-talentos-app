@@ -16,7 +16,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,45 +42,42 @@ fun JobMapScreen(
     onNavigateBack: () -> Unit,
     viewModel: JobsViewModel
 ) {
-    val jobs = viewModel.jobs
+    val jobs by viewModel.jobs.collectAsState()
+
     val context = LocalContext.current
-    
-    
+
     Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
 
     var selectedJob by remember { mutableStateOf<JobPosting?>(null) }
     val sheetState = rememberModalBottomSheetState()
-    
-   
+
     val mapView = remember {
         MapView(context).apply {
             setMultiTouchControls(true)
             controller.setZoom(15.0)
-            controller.setCenter(GeoPoint(-4.9793, -39.0564)) 
+            controller.setCenter(GeoPoint(-4.9685, -39.0150)) // Centro de Quixadá (ajustado)
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            
-        }
-    }
+    LaunchedEffect(jobs) {
+        mapView.overlays.clear()
 
-   
-    mapView.overlays.clear()
-    jobs.forEach { job ->
-        if (job.latitude != 0.0 && job.longitude != 0.0) {
-            val marker = Marker(mapView)
-            marker.position = GeoPoint(job.latitude, job.longitude)
-            marker.title = job.title
-            marker.snippet = job.company
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            marker.setOnMarkerClickListener { m, _ ->
-                selectedJob = job
-                true
+        jobs.forEach { job ->
+            if (job.latitude != null && job.longitude != null) {
+                val marker = Marker(mapView)
+                marker.position = GeoPoint(job.latitude, job.longitude)
+                marker.title = job.title
+                marker.snippet = job.company
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+                marker.setOnMarkerClickListener { _, _ ->
+                    selectedJob = job
+                    true
+                }
+                mapView.overlays.add(marker)
             }
-            mapView.overlays.add(marker)
         }
+        mapView.invalidate()
     }
 
     Scaffold(
@@ -113,10 +111,11 @@ fun JobMapScreen(
                 containerColor = Color.White
             ) {
                 Box(modifier = Modifier.padding(16.dp).padding(bottom = 32.dp)) {
-                     JobCard(
+                    JobCard(
                         job = selectedJob!!,
                         onClick = {
                             viewModel.toggleApplication(selectedJob!!.title)
+                            selectedJob = null
                         }
                     )
                 }

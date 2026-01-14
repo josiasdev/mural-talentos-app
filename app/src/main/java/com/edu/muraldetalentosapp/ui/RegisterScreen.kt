@@ -1,5 +1,6 @@
 package com.edu.muraldetalentosapp.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.AccountBox
+import androidx.compose.material.icons.outlined.Business
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,18 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.edu.muraldetalentosapp.ui.components.AccountType
 import com.edu.muraldetalentosapp.ui.components.AccountTypeButton
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import androidx.compose.runtime.LaunchedEffect
+import com.edu.muraldetalentosapp.ui.components.AccountType
 import com.edu.muraldetalentosapp.viewmodel.AuthViewModel
 import com.edu.muraldetalentosapp.viewmodel.AuthState
 
@@ -41,20 +37,28 @@ fun RegisterScreen(
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
 
-
+    // Estados de erro
     var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
 
-
+    // Estados dos campos
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var about by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+
+    var selectedAccountType by remember { mutableStateOf(AccountType.COMPANY) }
+
+    val nameLabel = if (selectedAccountType == AccountType.COMPANY) "Nome da Empresa" else "Nome Completo"
+    val namePlaceholder = if (selectedAccountType == AccountType.COMPANY) "Empresa LTDA" else "João Silva"
+
+    val aboutLabel = if (selectedAccountType == AccountType.COMPANY) "Sobre a Empresa" else "Sobre Você"
+    val aboutPlaceholder = if (selectedAccountType == AccountType.COMPANY) "Descreva sua empresa..." else "Conte um pouco sobre sua experiência..."
 
     LaunchedEffect(authState) {
         when (authState) {
@@ -76,10 +80,7 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFE0F2FE),
-                        Color(0xFFDBEAFE)
-                    ),
+                    colors = listOf(Color(0xFFE0F2FE), Color(0xFFDBEAFE)),
                     start = Offset(0f, 0f),
                     end = Offset(0f, Float.POSITIVE_INFINITY)
                 )
@@ -88,9 +89,10 @@ fun RegisterScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
                 .padding(16.dp)
         ) {
-
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,7 +114,6 @@ fun RegisterScreen(
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
-
 
             Card(
                 modifier = Modifier
@@ -141,16 +142,13 @@ fun RegisterScreen(
                         modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                     )
 
-
                     Text(
                         text = "Tipo de Conta",
                         fontSize = 14.sp,
                         color = Color(0xFF0A0A0A),
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    
-                    var selectedAccountType by remember { mutableStateOf(AccountType.CANDIDATE) }
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -164,34 +162,32 @@ fun RegisterScreen(
                         )
                         AccountTypeButton(
                             text = "Empresa",
-                            icon = Icons.Outlined.AccountBox,
+                            icon = Icons.Outlined.Business, // Mudei para Business para combinar mais
                             isSelected = selectedAccountType == AccountType.COMPANY,
                             onClick = { selectedAccountType = AccountType.COMPANY },
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
 
-
                     RegisterTextField(
-                        label = "Nome Completo",
+                        label = nameLabel,
                         value = name,
-                        onValueChange = { 
+                        onValueChange = {
                             name = it
                             if (nameError != null) nameError = null
                         },
-                        placeholder = "João Silva",
+                        placeholder = namePlaceholder,
                         errorMessage = nameError
                     )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
 
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     RegisterTextField(
                         label = "E-mail",
                         value = email,
-                        onValueChange = { 
+                        onValueChange = {
                             email = it
                             if (emailError != null) emailError = null
                         },
@@ -200,7 +196,6 @@ fun RegisterScreen(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
-
 
                     RegisterTextField(
                         label = "Telefone",
@@ -226,9 +221,8 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-
                     Text(
-                        text = "Sobre Você",
+                        text = aboutLabel,
                         fontSize = 14.sp,
                         color = Color(0xFF0A0A0A),
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -236,7 +230,7 @@ fun RegisterScreen(
                     TextField(
                         value = about,
                         onValueChange = { about = it },
-                        placeholder = { Text("Conte um pouco sobre sua experiência...", color = Color(0xFF717182)) },
+                        placeholder = { Text(aboutPlaceholder, color = Color(0xFF717182)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp),
@@ -256,11 +250,10 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-
                     RegisterTextField(
                         label = "Senha",
                         value = password,
-                        onValueChange = { 
+                        onValueChange = {
                             password = it
                             if (passwordError != null) passwordError = null
                         },
@@ -271,11 +264,10 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-
                     RegisterTextField(
                         label = "Confirmar Senha",
                         value = confirmPassword,
-                        onValueChange = { 
+                        onValueChange = {
                             confirmPassword = it
                             if (confirmPasswordError != null) confirmPasswordError = null
                         },
@@ -286,48 +278,24 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-
                     Button(
-                        onClick = { 
-
+                        onClick = {
                             var isValid = true
-                            
-                            if (name.isBlank()) {
-                                nameError = "Nome é obrigatório"
-                                isValid = false
-                            }
-                            
-                            if (email.isBlank()) {
-                                emailError = "E-mail é obrigatório"
-                                isValid = false
-                            } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                                emailError = "E-mail inválido"
-                                isValid = false
-                            }
-                            
-                            if (phone.isBlank()) {
-                                phoneError = "Telefone é obrigatório"
-                                isValid = false
-                            }
-                            
-                            if (password.isBlank()) {
-                                passwordError = "Senha é obrigatória"
-                                isValid = false
-                            } else if (password.length < 6) {
-                                passwordError = "A senha deve ter pelo menos 6 caracteres"
-                                isValid = false
-                            }
-                            
-                            if (confirmPassword.isBlank()) {
-                                confirmPasswordError = "Confirmação de senha é obrigatória"
-                                isValid = false
-                            } else if (password != confirmPassword) {
-                                confirmPasswordError = "As senhas não coincidem"
-                                isValid = false
-                            }
+
+                            if (name.isBlank()) { nameError = "Este campo é obrigatório"; isValid = false }
+                            if (email.isBlank()) { emailError = "E-mail é obrigatório"; isValid = false }
+                            else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { emailError = "E-mail inválido"; isValid = false }
+
+                            if (phone.isBlank()) { phoneError = "Telefone é obrigatório"; isValid = false }
+
+                            if (password.isBlank()) { passwordError = "Senha é obrigatória"; isValid = false }
+                            else if (password.length < 6) { passwordError = "Mínimo 6 caracteres"; isValid = false }
+
+                            if (confirmPassword.isBlank()) { confirmPasswordError = "Confirme sua senha"; isValid = false }
+                            else if (password != confirmPassword) { confirmPasswordError = "As senhas não coincidem"; isValid = false }
 
                             if (isValid) {
-                                viewModel.signUp(email, password, name)
+                                viewModel.signUp(email, password, name, selectedAccountType)
                             }
                         },
                         modifier = Modifier
@@ -339,20 +307,23 @@ fun RegisterScreen(
                             contentColor = Color.White
                         )
                     ) {
-                        Text(
-                            text = if (authState is AuthState.Loading) "Criando Conta..." else "Criar Conta",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (authState is AuthState.Loading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text(
+                                text = "Criar Conta",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
     }
 }
-
 @Composable
 fun RegisterTextField(
     label: String,
@@ -369,7 +340,7 @@ fun RegisterTextField(
             color = Color(0xFF0A0A0A),
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
+
         TextField(
             value = value,
             onValueChange = onValueChange,
@@ -394,7 +365,7 @@ fun RegisterTextField(
             singleLine = true,
             isError = errorMessage != null
         )
-        
+
         if (errorMessage != null) {
             Text(
                 text = errorMessage,
@@ -404,10 +375,4 @@ fun RegisterTextField(
             )
         }
     }
-}
-
-@Preview
-@Composable
-fun RegisterScreenPreview() {
-    // RegisterScreen(viewModel = AuthViewModel())
 }

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.edu.muraldetalentosapp.ui.components.AccountType
 
 sealed class AuthState {
     object Idle : AuthState()
@@ -22,6 +23,10 @@ class AuthViewModel : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    private val _userType = MutableStateFlow(AccountType.COMPANY)
+    val userType: StateFlow<AccountType> = _userType.asStateFlow()
+
 
     fun signIn(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
@@ -43,7 +48,7 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun signUp(email: String, password: String, name: String) {
+    fun signUp(email: String, password: String, name: String, type: AccountType) {
         if (email.isBlank() || password.isBlank() || name.isBlank()) {
             _authState.value = AuthState.Error("Nome, email e senha não podem estar em branco.")
             return
@@ -58,10 +63,8 @@ class AuthViewModel : ViewModel() {
                             .setDisplayName(name)
                             .build()
                         user.updateProfile(profileUpdates).await()
+                        _userType.value = type
                     } catch (e: Exception) {
-                        // Log error or handle it, but we still consider signup successful for now
-                        // or we could fail. Usually updating profile failure shouldn't block sign up success entirely
-                        // but for consistency let's just proceed.
                     }
                     _authState.value = AuthState.Success(user)
                 } ?: run {
@@ -72,10 +75,15 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+
+    fun setUserType(type: AccountType) {
+        _userType.value = type
+    }
     
     fun signOut() {
         auth.signOut()
         _authState.value = AuthState.Idle
+        _userType.value = AccountType.CANDIDATE
     }
 
     fun resetState() {
