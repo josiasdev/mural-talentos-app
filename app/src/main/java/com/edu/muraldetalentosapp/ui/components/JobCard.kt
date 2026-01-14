@@ -43,12 +43,12 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.AttachMoney, contentDescription = null)
-                Text(text = job.salaryRange)
+                Text(text = job.salaryRange ?: "A combinar")
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                Text(text = "Publicada em ${job.publishedAt}")
+                Text(text = "Publicada em ${job.publishedAt ?: "Data desconhecida"}")
             }
 
             Spacer(Modifier.height(12.dp))
@@ -57,9 +57,9 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                enabled = !job.isApplied
+                enabled = (job.isApplied == false)
             ) {
-                Text(if (job.isApplied) "Candidatado" else "Candidatar-se")
+                Text(if (job.isApplied == true) "Candidatado" else "Candidatar-se")
             }
         }
     }
