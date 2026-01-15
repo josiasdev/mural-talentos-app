@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.edu.muraldetalentosapp.ui.model.JobPosting
+import com.edu.muraldetalentosapp.data.model.JobPosting
 
 @Composable
 fun JobCard(job: JobPosting, onClick: () -> Unit) {
@@ -37,18 +37,21 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
             Spacer(Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.LocationOn, contentDescription = null)
+                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(text = job.location)
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AttachMoney, contentDescription = null)
-                Text(text = job.salaryRange ?: "A combinar")
+                Icon(Icons.Default.AttachMoney, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(text = job.salaryRange.ifBlank { "A combinar" })
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                Text(text = "Publicada em ${job.publishedAt ?: "Data desconhecida"}")
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(text = "Publicada em ${job.publishedAt.ifBlank { "Data desconhecida" }}")
             }
 
             Spacer(Modifier.height(12.dp))
@@ -57,9 +60,9 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                enabled = (job.isApplied == false)
+                enabled = !job.isApplied
             ) {
-                Text(if (job.isApplied == true) "Candidatado" else "Candidatar-se")
+                Text(if (job.isApplied) "Candidatado" else "Candidatar-se")
             }
         }
     }

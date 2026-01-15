@@ -1,15 +1,18 @@
 package com.edu.muraldetalentosapp.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.edu.muraldetalentosapp.ui.model.JobPosting
+import androidx.lifecycle.viewModelScope
+import com.edu.muraldetalentosapp.data.model.JobPosting
+import com.edu.muraldetalentosapp.data.repository.JobPostingRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 data class PostJobUiState(
     val title: String = "",
@@ -24,24 +27,37 @@ data class PostJobUiState(
     val locationError: Boolean = false,
     val contractError: Boolean = false,
     val salaryError: Boolean = false,
-    val isPostedSuccess: Boolean = false
+    val isPostedSuccess: Boolean = false,
+    val isLoading: Boolean = false
 )
 
 class JobsViewModel : ViewModel() {
+    private val repository = JobPostingRepository()
+    private val auth = FirebaseAuth.getInstance()
 
-    private val _jobs = MutableStateFlow(generateMockJobs())
+    private val _jobs = MutableStateFlow<List<JobPosting>>(emptyList())
     val jobs: StateFlow<List<JobPosting>> = _jobs.asStateFlow()
 
     private val _uiState = MutableStateFlow(PostJobUiState())
     val uiState: StateFlow<PostJobUiState> = _uiState.asStateFlow()
 
-    fun toggleApplication(jobTitle: String) {
+    init {
+        fetchJobs()
+    }
+
+    fun fetchJobs() {
+        viewModelScope.launch {
+            val jobList = repository.getAllActiveJobPostings()
+            _jobs.value = jobList
+        }
+    }
+
+    fun toggleApplication(jobId: String) {
+        // No Firebase implementation for applications yet, keeping local toggle for UI feedback
         _jobs.update { currentList ->
             currentList.map { job ->
-                if (job.title == jobTitle) {
-                    // Tratamento seguro para nulos (isApplied é Boolean?)
-                    val currentStatus = job.isApplied ?: false
-                    job.copy(isApplied = !currentStatus)
+                if (job.id == jobId) {
+                    job.copy(isApplied = !job.isApplied)
                 } else {
                     job
                 }
@@ -75,175 +91,44 @@ class JobsViewModel : ViewModel() {
 
         if (hasError) return
 
-        val currentTimestamp = System.currentTimeMillis()
-        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-        val expirationTimestamp = currentTimestamp + thirtyDaysInMillis
-        val formattedDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(currentTimestamp))
+        val currentUser = auth.currentUser
+        if (currentUser == null) return
 
-        val newJob = JobPosting(
-            id = UUID.randomUUID().toString(),
-            title = state.title,
-            company = "Minha Empresa (Demo)",
-            description = state.description,
-            location = state.location,
-            type = state.contractType, // Visual
-            contractType = state.contractType, // Lógico
-            salaryRange = if (state.isSalaryNegotiable) "A combinar" else state.salary,
-            isSalaryNegotiable = state.isSalaryNegotiable,
-            publishedAt = formattedDate,
-            datePosted = currentTimestamp,
-            expirationDate = expirationTimestamp,
-            isApplied = false,
-            imageUrl = state.imageUrl.ifBlank { null },
-            latitude = -4.9685, // Mock Quixadá Centro
-            longitude = -39.0150
-        )
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
+            val currentTimestamp = System.currentTimeMillis()
+            val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
+            val expirationTimestamp = currentTimestamp + thirtyDaysInMillis
+            val formattedDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(currentTimestamp))
 
-        _jobs.update { listOf(newJob) + it }
-        _uiState.update { PostJobUiState(isPostedSuccess = true) }
-    }
-
-    private fun generateMockJobs(): List<JobPosting> {
-        val now = System.currentTimeMillis()
-        val thirtyDays = 30L * 24 * 60 * 60 * 1000
-
-        return listOf(
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Vendedor Interno",
-                company = "Loja Magazine",
-                description = "Responsável pelo atendimento ao cliente, organização de produtos e vendas internas. Necessário ensino médio completo.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.800 - R$ 2.500",
-                isSalaryNegotiable = false,
-                publishedAt = "30/09/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
+            val newJob = JobPosting(
+                title = state.title,
+                company = currentUser.displayName ?: "Empresa",
+                companyId = currentUser.uid,
+                description = state.description,
+                location = state.location,
+                type = state.contractType,
+                contractType = state.contractType,
+                salaryRange = if (state.isSalaryNegotiable) "A combinar" else state.salary,
+                isSalaryNegotiable = state.isSalaryNegotiable,
+                publishedAt = formattedDate,
+                datePosted = currentTimestamp,
+                expirationDate = expirationTimestamp,
                 isApplied = false,
-                latitude = -4.9685,
+                imageUrl = state.imageUrl.ifBlank { null },
+                latitude = -4.9685, // Default for Quixadá
                 longitude = -39.0150
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Repositor de Mercadorias",
-                company = "Supermercado Central",
-                description = "Reposição de prateleiras, verificação de validade e organização de estoque.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.600 - R$ 2.000",
-                isSalaryNegotiable = false,
-                publishedAt = "04/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9700,
-                longitude = -39.0200
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Desenvolvedor Android Pleno",
-                company = "Startup Vision",
-                description = "Desenvolvimento de aplicativos nativos utilizando Kotlin e Jetpack Compose. Trabalho remoto.",
-                type = "PJ",
-                contractType = "PJ",
-                location = "Remoto",
-                salaryRange = "R$ 7.000 - R$ 9.000",
-                isSalaryNegotiable = true,
-                publishedAt = "01/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9793,
-                longitude = -39.0564
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Auxiliar Administrativo",
-                company = "Escritório Contábil Futuro",
-                description = "Auxílio nas rotinas do escritório, emissão de notas fiscais e atendimento telefônico.",
-                type = "Estágio",
-                contractType = "Estágio",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 800",
-                isSalaryNegotiable = false,
-                publishedAt = "10/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9750,
-                longitude = -39.0400
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Garçom / Garçonete",
-                company = "Restaurante Sabor do Sertão",
-                description = "Atendimento às mesas, anotar pedidos e servir clientes.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.500 + gorjetas",
-                isSalaryNegotiable = false,
-                publishedAt = "11/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9650,
-                longitude = -39.0100
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Técnico de Enfermagem",
-                company = "Hospital Eudásio Barroso",
-                description = "Atuar na assistência aos pacientes, administração de medicamentos e cuidados gerais.",
-                type = "Concurso",
-                contractType = "Concurso",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 2.200 - R$ 3.000",
-                isSalaryNegotiable = false,
-                publishedAt = "12/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9720,
-                longitude = -39.0250
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Professor de Inglês",
-                company = "Escola de Idiomas Wize",
-                description = "Ministrar aulas de inglês para turmas iniciantes e intermediárias.",
-                type = "Autônomo",
-                contractType = "Autônomo",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 30/hora",
-                isSalaryNegotiable = false,
-                publishedAt = "13/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9800,
-                longitude = -39.0500
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Caixa de Loja",
-                company = "Farmácia Pague Menos",
-                description = "Operação de caixa, recebimento de valores e abertura/fechamento de caixa.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.412",
-                isSalaryNegotiable = false,
-                publishedAt = "14/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9690,
-                longitude = -39.0180
             )
-        )
+
+            try {
+                repository.saveJobPosting(newJob)
+                _uiState.update { PostJobUiState(isPostedSuccess = true) }
+                fetchJobs() // Refresh the list
+            } catch (e: Exception) {
+                // Handle error
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
     }
 }

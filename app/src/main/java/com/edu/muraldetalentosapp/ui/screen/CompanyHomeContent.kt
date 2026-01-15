@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.edu.muraldetalentosapp.ui.model.JobPosting
+import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
@@ -194,8 +194,8 @@ fun CompanyJobCard(job: JobPosting) {
             Spacer(Modifier.height(12.dp))
 
             Text("📍 ${job.location}", fontSize = 13.sp, color = TextGray)
-            Text("💲 ${job.salaryRange ?: "A combinar"}", fontSize = 13.sp, color = TextGray)
-            Text("🕒 Publicada em ${job.publishedAt ?: "Recentemente"}", fontSize = 13.sp, color = TextGray)
+            Text("💲 ${job.salaryRange}", fontSize = 13.sp, color = TextGray)
+            Text("🕒 Publicada em ${job.publishedAt}", fontSize = 13.sp, color = TextGray)
 
             Spacer(Modifier.height(16.dp))
 

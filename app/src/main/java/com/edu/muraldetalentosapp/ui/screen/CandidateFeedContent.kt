@@ -73,8 +73,8 @@ fun CandidateFeedContent(
         }
     }
 
-    val availableJobs = filteredJobs.filter { it.isApplied != true } // Trata null como false
-    val appliedJobs = filteredJobs.filter { it.isApplied == true }
+    val availableJobs = filteredJobs.filter { !it.isApplied }
+    val appliedJobs = filteredJobs.filter { it.isApplied }
 
     val tabs = listOf("Todas (${availableJobs.size})", "Candidaturas (${appliedJobs.size})")
 
@@ -221,8 +221,7 @@ fun CandidateFeedContent(
                 JobCard(
                     job = job,
                     onClick = {
-                        // Chama a função do ViewModel para aplicar/desaplicar
-                        viewModel.toggleApplication(job.title)
+                        viewModel.toggleApplication(job.id)
                     }
                 )
             }

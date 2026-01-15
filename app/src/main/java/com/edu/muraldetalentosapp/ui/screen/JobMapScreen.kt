@@ -28,7 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.edu.muraldetalentosapp.ui.components.JobCard
-import com.edu.muraldetalentosapp.ui.model.JobPosting
+import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 import org.osmdroid.config.Configuration
@@ -114,7 +114,7 @@ fun JobMapScreen(
                     JobCard(
                         job = selectedJob!!,
                         onClick = {
-                            viewModel.toggleApplication(selectedJob!!.title)
+                            viewModel.toggleApplication(selectedJob!!.id)
                             selectedJob = null
                         }
                     )
