@@ -29,8 +29,6 @@ fun CandidateFeedContent(
     viewModel: JobsViewModel,
     onNavigateToMap: () -> Unit
 ) {
-
-
     val jobs by viewModel.jobs.collectAsState()
 
     var search by remember { mutableStateOf("") }
@@ -48,7 +46,7 @@ fun CandidateFeedContent(
 
     fun parseSalary(salary: String?): Float? {
         if (salary == null || salary == "A combinar") return null
-        val salaryString = salary.split("-")[0] // Pega o primeiro valor se for faixa
+        val salaryString = salary.split("-")[0]
         val cleanedSalary = salaryString.replace(Regex("[^0-9,]"), "")
         return cleanedSalary.replace(',', '.').toFloatOrNull()
     }
@@ -89,7 +87,6 @@ fun CandidateFeedContent(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 16.dp)
@@ -122,7 +119,6 @@ fun CandidateFeedContent(
 
         AnimatedVisibility(visible = isFilterExpanded) {
             Column(Modifier.padding(vertical = 16.dp)) {
-
                 Text("Localização", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     locations.forEach { location ->
@@ -221,7 +217,7 @@ fun CandidateFeedContent(
                 JobCard(
                     job = job,
                     onClick = {
-                        viewModel.toggleApplication(job.id)
+                        viewModel.applyToJob(job.id)
                     }
                 )
             }

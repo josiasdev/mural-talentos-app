@@ -27,17 +27,21 @@ import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun CompanyDashboard(
     viewModel: JobsViewModel,
     onNavigateToPostJob: () -> Unit
 ) {
-    val myJobs by viewModel.jobs.collectAsState()
+    val allJobs by viewModel.jobs.collectAsState()
+    val applicationCounts by viewModel.jobApplicationCounts.collectAsState()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
+    val myJobs = allJobs.filter { it.companyId == currentUserId }
+    
     val activeJobsCount = myJobs.size
-
-    val totalCandidates = activeJobsCount * 5
+    val totalCandidates = myJobs.sumOf { applicationCounts[it.id] ?: 0 }
 
     LazyColumn(
         modifier = Modifier
@@ -104,12 +108,14 @@ fun CompanyDashboard(
         }
 
         item {
-            Text("Vagas Publicadas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Minhas Vagas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
 
-
         items(myJobs) { job ->
-            CompanyJobCard(job = job)
+            CompanyJobCard(
+                job = job,
+                candidateCount = applicationCounts[job.id] ?: 0
+            )
         }
     }
 }
@@ -149,7 +155,7 @@ fun StatCard(title: String, count: String, icon: ImageVector, modifier: Modifier
 }
 
 @Composable
-fun CompanyJobCard(job: JobPosting) {
+fun CompanyJobCard(job: JobPosting, candidateCount: Int) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
@@ -176,7 +182,7 @@ fun CompanyJobCard(job: JobPosting) {
                         Spacer(Modifier.width(8.dp))
                         Icon(Icons.Outlined.Groups, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextGray)
                         Spacer(Modifier.width(4.dp))
-                        Text("15 candidatos", fontSize = 12.sp, color = TextGray) // Mockado por enquanto
+                        Text("$candidateCount candidatos", fontSize = 12.sp, color = TextGray)
                     }
                 }
             }

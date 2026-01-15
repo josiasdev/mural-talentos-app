@@ -2,6 +2,10 @@ package com.edu.muraldetalentosapp.data.repository
 
 import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class JobPostingRepository {
@@ -36,6 +40,22 @@ class JobPostingRepository {
             jobsCollection.document(job.id).set(jobMap).await()
             job.id
         }
+    }
+
+    fun listenToActiveJobs(): Flow<List<JobPosting>> = callbackFlow {
+        val subscription = jobsCollection
+            .whereEqualTo("isActive", true)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val jobs = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(JobPosting::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+                trySend(jobs)
+            }
+        awaitClose { subscription.remove() }
     }
 
     suspend fun getAllActiveJobPostings(): List<JobPosting> {
