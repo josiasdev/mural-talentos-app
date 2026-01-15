@@ -56,7 +56,12 @@ fun AppNavigation() {
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
-                    navController.popBackStack()
+                    // Após o registro bem-sucedido, navega para a Home limpando a pilha de navegação
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) {
+                            inclusive = true
+                        }
+                    }
                 },
                 onNavigateBack = {
                     navController.popBackStack()

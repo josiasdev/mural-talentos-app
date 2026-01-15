@@ -49,6 +49,15 @@ fun HomeScreen(
                         }
                     }
                 },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Sair",
+                            tint = BluePrimary
+                        )
+                    }
+                },
                 actions = {
                     if (userType == AccountType.CANDIDATE) {
                         IconButton(onClick = onNavigateToMap) {
@@ -56,14 +65,6 @@ fun HomeScreen(
                         }
                         IconButton(onClick = onNavigateToProfile) {
                             Icon(Icons.Default.Person, contentDescription = "Perfil", tint = BluePrimary)
-                        }
-                    } else {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Sair",
-                                tint = BluePrimary
-                            )
                         }
                     }
                 },

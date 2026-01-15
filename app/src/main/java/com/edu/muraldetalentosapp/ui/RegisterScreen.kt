@@ -162,7 +162,7 @@ fun RegisterScreen(
                         )
                         AccountTypeButton(
                             text = "Empresa",
-                            icon = Icons.Outlined.Business, // Mudei para Business para combinar mais
+                            icon = Icons.Outlined.Business,
                             isSelected = selectedAccountType == AccountType.COMPANY,
                             onClick = { selectedAccountType = AccountType.COMPANY },
                             modifier = Modifier.weight(1f)
@@ -295,7 +295,7 @@ fun RegisterScreen(
                             else if (password != confirmPassword) { confirmPasswordError = "As senhas não coincidem"; isValid = false }
 
                             if (isValid) {
-                                viewModel.signUp(email, password, name, selectedAccountType)
+                                viewModel.signUp(email, password, name, selectedAccountType, phone, about)
                             }
                         },
                         modifier = Modifier
