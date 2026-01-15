@@ -95,16 +95,18 @@ fun CandidateFeedContent(
                 value = search,
                 onValueChange = { search = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Buscar vagas...", color = TextGray) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextGray) },
+                placeholder = { Text("Buscar vagas...", color = MaterialTheme.colorScheme.onSurfaceVariant ) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(8.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = BackgroundGray,
-                    unfocusedContainerColor = BackgroundGray,
-                    disabledContainerColor = BackgroundGray,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
+                    disabledIndicatorColor = Color.Transparent,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 ),
                 singleLine = true
             )
@@ -112,14 +114,14 @@ fun CandidateFeedContent(
                 Icon(
                     imageVector = Icons.Default.FilterList,
                     contentDescription = "Filtrar",
-                    tint = if (isFilterExpanded) BluePrimary else TextGray
+                    tint = if (isFilterExpanded) BluePrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
         AnimatedVisibility(visible = isFilterExpanded) {
             Column(Modifier.padding(vertical = 16.dp)) {
-                Text("Localização", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Localização", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onBackground)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     locations.forEach { location ->
                         FilterChip(
@@ -142,7 +144,7 @@ fun CandidateFeedContent(
 
                 Spacer(Modifier.height(16.dp))
 
-                Text("Tipo de Vaga", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Tipo de Vaga", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onBackground)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     jobTypes.forEach { type ->
                         FilterChip(
@@ -165,7 +167,7 @@ fun CandidateFeedContent(
 
                 Spacer(Modifier.height(16.dp))
 
-                Text("Faixa Salarial", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Faixa Salarial", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onBackground)
                 RangeSlider(
                     value = selectedSalaryRange,
                     onValueChange = { selectedSalaryRange = it },
@@ -177,8 +179,8 @@ fun CandidateFeedContent(
                     )
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("R$ ${selectedSalaryRange.start.toInt()}", fontSize = 12.sp, color = TextGray)
-                    Text("R$ ${selectedSalaryRange.endInclusive.toInt()}", fontSize = 12.sp, color = TextGray)
+                    Text("R$ ${selectedSalaryRange.start.toInt()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("R$ ${selectedSalaryRange.endInclusive.toInt()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -187,7 +189,7 @@ fun CandidateFeedContent(
 
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = BluePrimary,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
@@ -202,7 +204,7 @@ fun CandidateFeedContent(
                     onClick = { selectedTab = index },
                     text = { Text(text, fontWeight = if(index == selectedTab) FontWeight.Bold else FontWeight.Normal) },
                     selectedContentColor = BluePrimary,
-                    unselectedContentColor = TextGray
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +50,7 @@ fun PostJobScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -58,12 +59,12 @@ fun PostJobScreen(
                             "Nova Vaga",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E40AF)
+                            color = BluePrimary
                         )
                         Text(
                             "Preencha os detalhes da vaga",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -72,17 +73,17 @@ fun PostJobScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Voltar",
-                            tint = Color.Black
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface, scrolledContainerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
             Column(
                 modifier = Modifier
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(16.dp)
             ) {
                 Row(
@@ -93,16 +94,16 @@ fun PostJobScreen(
                         onClick = onNavigateBack,
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
-                        Text("Cancelar", color = Color.Black)
+                        Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     Button(
                         onClick = { viewModel.publishJob() },
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF))
+                        colors = ButtonDefaults.buttonColors(containerColor = BluePrimary, contentColor = Color.White)
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
@@ -113,7 +114,7 @@ fun PostJobScreen(
                 Text(
                     "* Campos obrigatórios",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
@@ -174,9 +175,9 @@ fun PostJobScreen(
                     Checkbox(
                         checked = state.isSalaryNegotiable,
                         onCheckedChange = { viewModel.onSalaryNegotiableChange(it) },
-                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF1E40AF))
+                        colors = CheckboxDefaults.colors(checkedColor = BluePrimary)
                     )
-                    Text("Salário a combinar")
+                    Text("Salário a combinar", color = MaterialTheme.colorScheme.onSurface)
                 }
 
                 if (!state.isSalaryNegotiable) {
@@ -202,27 +203,27 @@ fun PostJobScreen(
                         .height(100.dp)
                         .border(
                             width = 1.dp,
-                            color = Color(0xFF9CA3AF),
+                            color = MaterialTheme.colorScheme.outline,
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .background(Color.Transparent, RoundedCornerShape(8.dp))
                         .clickable { viewModel.onImageUrlChange("imagem_mockada.jpg") }, // Simula upload
                     contentAlignment = Alignment.Center
                 ) {
                     if (state.imageUrl.isNotBlank()) {
-                        Text("Imagem selecionada!", color = Color(0xFF1E40AF))
+                        Text("Imagem selecionada!", color = BluePrimary)
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.UploadFile, contentDescription = null, tint = Color(0xFF2563EB))
+                            Icon(Icons.Outlined.UploadFile, contentDescription = null, tint = BluePrimary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Clique para adicionar imagem", color = Color.Gray)
+                            Text("Clique para adicionar imagem", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
                 Text(
                     text = "Tamanho máximo: 5MB",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -241,11 +242,11 @@ fun SectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB)) // Borda cinza suave
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) // Borda cinza suave
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -259,11 +260,11 @@ fun SectionCard(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Column {
-                    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF3F4F6))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.surfaceVariant)
 
             content()
         }
@@ -286,9 +287,13 @@ fun CustomTextField(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color = if (isError) MaterialTheme.colorScheme.error else Color.Unspecified,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 4.dp)
         )
+
+        val containerColor = MaterialTheme.colorScheme.surfaceVariant
+
+
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -297,12 +302,14 @@ fun CustomTextField(
             shape = RoundedCornerShape(8.dp),
             isError = isError,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFF3F4F6),
-                unfocusedContainerColor = Color(0xFFF3F4F6),
-                disabledContainerColor = Color(0xFFF3F4F6),
-                errorContainerColor = Color(0xFFFEF2F2),
-                focusedBorderColor = Color(0xFF2563EB),
-                unfocusedBorderColor = Color.Transparent
+                focusedContainerColor = containerColor,
+                unfocusedContainerColor = containerColor,
+                disabledContainerColor = containerColor,
+                errorContainerColor = MaterialTheme.colorScheme.errorContainer,
+                focusedBorderColor = BluePrimary,
+                unfocusedBorderColor = Color.Transparent,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             ),
             singleLine = singleLine,
             keyboardOptions = keyboardOptions

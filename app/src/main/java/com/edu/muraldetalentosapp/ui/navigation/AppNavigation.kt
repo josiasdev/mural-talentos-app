@@ -27,7 +27,11 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit
+) {
+
     val navController = rememberNavController()
 
     val authViewModel: AuthViewModel = viewModel()
@@ -92,7 +96,9 @@ fun AppNavigation() {
                     navController.navigate(Screen.PostJob.route)
                 },
 
-                userType = userType
+                userType = userType,
+                isDarkTheme = isDarkTheme,
+                onThemeToggle = onThemeToggle
             )
         }
 
