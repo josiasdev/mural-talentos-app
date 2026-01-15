@@ -39,17 +39,30 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.ui.theme.IconBlue
 import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
+import io.github.jan.supabase.storage.storage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+// --- UI STATE AND VIEWMODEL ---
+
+enum class UploadState {
+    Idle, Uploading, Success, Error
+}
 
 data class ProfileUiState(
     val fullName: String = "",
     val email: String = "",
     val cpf: String = "",
     val fileName: String? = null,
+    val selectedFileUri: Uri? = null,
+    val uploadState: UploadState = UploadState.Idle,
     val emailError: String? = null,
     val cpfError: String? = null
 )
@@ -70,8 +83,8 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    fun onFileSelected(name: String) {
-        uiState = uiState.copy(fileName = name)
+    fun onFileSelected(uri: Uri, fileName: String) {
+        uiState = uiState.copy(selectedFileUri = uri, fileName = fileName, uploadState = UploadState.Idle)
     }
 
     private fun validateEmail() {
@@ -94,25 +107,69 @@ class ProfileViewModel : ViewModel() {
         uiState = uiState.copy(cpfError = error)
     }
 
-    fun saveData() {
+    fun saveData(context: Context) {
         validateEmail()
         validateCpf()
         if (uiState.emailError == null && uiState.cpfError == null) {
-            println("Salvando: ${uiState}")
-        } else {
-            println("Dados inválidos, não foi possível salvar.")
+            val fileUri = uiState.selectedFileUri
+            val fileName = uiState.fileName
+
+            if (fileUri != null && fileName != null) {
+                uploadResume(context, fileUri, fileName)
+            } else {
+                uiState = uiState.copy(uploadState = UploadState.Error, fileName = "Por favor, selecione um arquivo de currículo.")
+            }
+        }
+    }
+
+    private fun uploadResume(context: Context, fileUri: Uri, fileName: String) {
+        // Limpa caracteres especiais do email para usar no path se necessário, mas @ e . costumam ser aceitos
+        val userId = uiState.email.replace(Regex("[^a-zA-Z0-9]"), "_")
+        if (userId.isEmpty()) {
+            uiState = uiState.copy(uploadState = UploadState.Error, fileName = "E-mail obrigatório para o upload.")
+            return
         }
 
+        uiState = uiState.copy(uploadState = UploadState.Uploading)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val fileBytes = context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
+                    inputStream.readBytes()
+                } ?: throw Exception("Não foi possível ler o arquivo selecionado.")
+
+                // O path deve ser relativo ao bucket. Se o bucket é "resumes", o path começa após ele.
+                val storagePath = "${userId}/${fileName}"
+
+                com.edu.muraldetalentosapp.data.supabase.SupabaseManager.client.storage.from("resumes").upload(storagePath, fileBytes, upsert = true)
+
+                withContext(Dispatchers.Main) {
+                    uiState = uiState.copy(
+                        uploadState = UploadState.Success,
+                        selectedFileUri = null,
+                        fileName = "Enviado com sucesso: $fileName"
+                    )
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    uiState = uiState.copy(
+                        uploadState = UploadState.Error,
+                        fileName = "Erro no upload: ${e.localizedMessage ?: "Causa desconhecida"}"
+                    )
+                }
+            }
+        }
     }
 }
 
+// --- COMPOSE SCREEN ---
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(),
     onBackClick: () -> Unit = {},
-    onNavigateToHome: () -> Unit = {}
-
+    @Suppress("UNUSED_PARAMETER") onNavigateToHome: () -> Unit = {}
 ) {
     val state = viewModel.uiState
     val context = LocalContext.current
@@ -122,7 +179,7 @@ fun ProfileScreen(
     ) { uri: Uri? ->
         uri?.let {
             val fileName = getFileName(context, it)
-            viewModel.onFileSelected(fileName)
+            viewModel.onFileSelected(it, fileName)
         }
     }
 
@@ -130,9 +187,6 @@ fun ProfileScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             SimpleTopBar(onBackClick = onBackClick)
-        },
-        bottomBar = {
-            // Botão fixo ou no final do scroll (na imagem parece parte do fluxo)
         }
     ) { paddingValues ->
         Column(
@@ -143,7 +197,6 @@ fun ProfileScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Seção Dados Pessoais
             SectionCard(
                 icon = Icons.Outlined.Person,
                 title = "Dados Pessoais",
@@ -175,7 +228,6 @@ fun ProfileScreen(
                 )
             }
 
-            // Seção Currículo
             SectionCard(
                 icon = Icons.Outlined.Description,
                 title = "Currículo",
@@ -191,6 +243,7 @@ fun ProfileScreen(
 
                 UploadBox(
                     fileName = state.fileName,
+                    uploadState = state.uploadState,
                     onUploadClick = { launcher.launch("application/pdf") }
                 )
 
@@ -204,10 +257,9 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botão Salvar
             Button(
                 onClick = {
-                    viewModel.saveData()
+                    viewModel.saveData(context)
                     onNavigateToHome()
                 },
                 modifier = Modifier
@@ -217,11 +269,30 @@ fun ProfileScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BluePrimary,
                     contentColor = Color.White
-                )
+                ),
+                enabled = state.uploadState != UploadState.Uploading && state.emailError == null && state.cpfError == null
             ) {
-                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Salvar Dados", fontSize = 16.sp)
+                when (state.uploadState) {
+                    UploadState.Uploading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Enviando...", fontSize = 16.sp)
+                    }
+                    UploadState.Success -> {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Enviado!", fontSize = 16.sp)
+                    }
+                    else -> {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Salvar Dados", fontSize = 16.sp)
+                    }
+                }
             }
 
             Text(
@@ -255,17 +326,12 @@ private fun getFileName(context: Context, uri: Uri): String {
     if (result == null) {
         result = uri.path
         val cut = result?.lastIndexOf('/')
-        if (cut != -1) {
-            if (cut != null) {
-                result = result?.substring(cut + 1)
-            }
+        if (cut != null && cut != -1) {
+            result = result.substring(cut + 1)
         }
     }
     return result ?: "unknown"
 }
-
-
-// --- COMPONENTES REUTILIZÁVEIS ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -401,9 +467,17 @@ fun CustomTextField(
     }
 }
 
+private data class UploadStateConfig(
+    val backgroundColor: Color,
+    val textColor: Color,
+    val iconTint: Color,
+    val contentText: String
+)
+
 @Composable
 fun UploadBox(
     fileName: String?,
+    uploadState: UploadState,
     onUploadClick: () -> Unit
 ) {
 
@@ -413,6 +487,26 @@ fun UploadBox(
         width = 2f,
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
     )
+
+    val config = when (uploadState) {
+        UploadState.Uploading -> {
+            UploadStateConfig(Color(0xFFE0E0E0), Color.Gray, IconBlue, "Enviando...")
+        }
+        UploadState.Success -> {
+            UploadStateConfig(Color(0xFFC8E6C9), Color.Green, Color.Green, "Enviado com sucesso!")
+        }
+        UploadState.Error -> {
+            UploadStateConfig(Color(0xFFFFCDD2), Color.Red, Color.Red, "Erro ao enviar. Tente novamente.")
+        }
+        else -> {
+            UploadStateConfig(
+                Color.Transparent,
+                if (fileName != null) Color.Black else TextGray,
+                IconBlue,
+                fileName ?: "Clique para selecionar o arquivo PDF"
+            )
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -425,15 +519,20 @@ fun UploadBox(
                     cornerRadius = CornerRadius(8.dp.toPx())
                 )
             }
-            .background(Color.Transparent)
-            .clickable { onUploadClick() },
+            .background(if (uploadState != UploadState.Idle) config.backgroundColor else Color.Transparent)
+            .clickable(enabled = uploadState != UploadState.Uploading) { onUploadClick() },
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Outlined.FileUpload,
+                imageVector = when (uploadState) {
+                    UploadState.Uploading -> Icons.Default.Check
+                    UploadState.Success -> Icons.Default.Check
+                    UploadState.Error -> Icons.Default.Check
+                    else -> Icons.Outlined.FileUpload
+                },
                 contentDescription = null,
-                tint = IconBlue
+                tint = config.iconTint
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
