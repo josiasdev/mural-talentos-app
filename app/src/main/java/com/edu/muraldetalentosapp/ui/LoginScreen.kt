@@ -29,8 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-import com.edu.muraldetalentosapp.ui.components.AccountType
-import com.edu.muraldetalentosapp.ui.components.AccountTypeButton
+
 import com.edu.muraldetalentosapp.R
 
 import androidx.compose.material.icons.Icons
@@ -149,36 +148,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     
 
-                    Text(
-                        text = "Tipo de Conta",
-                        fontSize = 14.sp,
-                        color = Color(0xFF0A0A0A),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    
-                    var selectedAccountType by remember { mutableStateOf(AccountType.CANDIDATE) }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        AccountTypeButton(
-                            text = "Candidato",
-                            icon = Icons.Outlined.Person,
-                            isSelected = selectedAccountType == AccountType.CANDIDATE,
-                            onClick = { selectedAccountType = AccountType.CANDIDATE },
-                            modifier = Modifier.weight(1f)
-                        )
-                        AccountTypeButton(
-                            text = "Empresa",
-                            icon = Icons.Outlined.AccountBox,
-                            isSelected = selectedAccountType == AccountType.COMPANY,
-                            onClick = { selectedAccountType = AccountType.COMPANY },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
+
                     
 
                     var email by remember { mutableStateOf("") }
