@@ -127,7 +127,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             SimpleTopBar(onBackClick = onBackClick)
         },
@@ -185,7 +185,7 @@ fun ProfileScreen(
                     text = "Arquivo do Currículo (PDF) *",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -197,7 +197,7 @@ fun ProfileScreen(
                 Text(
                     text = "Tamanho máximo: 5MB",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -207,8 +207,8 @@ fun ProfileScreen(
             // Botão Salvar
             Button(
                 onClick = {
-                    viewModel::saveData
-                    onNavigateToHome
+                    viewModel.saveData()
+                    onNavigateToHome()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -228,7 +228,7 @@ fun ProfileScreen(
                 text = "* Campos obrigatórios",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
-                color = TextGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -282,17 +282,17 @@ fun SimpleTopBar(onBackClick: () -> Unit) {
                 Text(
                     text = "Dados do candidato",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextGray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = MaterialTheme.colorScheme.onSurface)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
@@ -306,9 +306,11 @@ fun SectionCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.LightGray), // A imagem parece ter uma borda sutil ou sombra, usando elevation padrão
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // A imagem parece ter uma borda sutil ou sombra, usando elevation padrão
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -316,20 +318,21 @@ fun SectionCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = IconBlue,
+                    tint = BluePrimary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 32.dp, bottom = 16.dp) // Alinha com titulo
             )
 
@@ -353,24 +356,28 @@ fun CustomTextField(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 4.dp)
         )
+
+        val borderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+
+
         TextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = TextGray) },
+            placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier
                 .fillMaxWidth()
                 .border(
                     width = 1.dp,
-                    color = if (isError) MaterialTheme.colorScheme.error else Color.LightGray,
+                    color = borderColor,
                     shape = RoundedCornerShape(8.dp)
                 ),
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 disabledContainerColor = BackgroundGray,
@@ -399,6 +406,9 @@ fun UploadBox(
     fileName: String?,
     onUploadClick: () -> Unit
 ) {
+
+    val strokeColor = MaterialTheme.colorScheme.outlineVariant
+
     val stroke = Stroke(
         width = 2f,
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
@@ -410,7 +420,7 @@ fun UploadBox(
             .height(80.dp)
             .drawBehind {
                 drawRoundRect(
-                    color = Color(0xFFD1D5DB), // Cinza claro
+                    color = strokeColor,
                     style = stroke,
                     cornerRadius = CornerRadius(8.dp.toPx())
                 )
@@ -428,7 +438,7 @@ fun UploadBox(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = fileName ?: "Clique para selecionar o arquivo PDF",
-                color = if (fileName != null) Color.Black else TextGray,
+                color = if (fileName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
         }

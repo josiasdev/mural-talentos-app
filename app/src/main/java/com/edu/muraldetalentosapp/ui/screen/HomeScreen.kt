@@ -26,6 +26,9 @@ import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 import com.edu.muraldetalentosapp.ui.components.AccountType
+import androidx.compose.material.icons.filled.DarkMode // Ícone Lua
+import androidx.compose.material.icons.filled.LightMode // Ícone Sol
+
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -36,21 +39,23 @@ fun HomeScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToPostJob: () -> Unit = {},
     userType: AccountType,
-    viewModel: JobsViewModel
+    viewModel: JobsViewModel,
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit
 ) {
     LaunchedEffect(Unit) {
         viewModel.fetchJobs()
     }
 
     Scaffold(
-        containerColor = if (userType == AccountType.COMPANY) Color(0xFFF9FAFB) else Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text("Mural de Talentos", color = BluePrimary, fontWeight = FontWeight.Bold)
                         if (userType == AccountType.COMPANY) {
-                            Text("Empresa", style = MaterialTheme.typography.bodySmall, color = TextGray)
+                            Text("Empresa", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 },
@@ -64,6 +69,13 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onThemeToggle) {
+                        Icon(
+                            imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = "Alternar Tema",
+                            tint = BluePrimary
+                        )
+                    }
                     if (userType == AccountType.CANDIDATE) {
                         IconButton(onClick = onNavigateToMap) {
                             Icon(Icons.Default.Map, contentDescription = "Mapa", tint = BluePrimary)
@@ -73,7 +85,10 @@ fun HomeScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
 
