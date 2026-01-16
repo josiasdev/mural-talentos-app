@@ -32,7 +32,8 @@ import com.google.firebase.auth.FirebaseAuth
 @Composable
 fun CompanyDashboard(
     viewModel: JobsViewModel,
-    onNavigateToPostJob: () -> Unit
+    onNavigateToPostJob: () -> Unit,
+    onNavigateToSearchCandidates: () -> Unit
 ) {
     val allJobs by viewModel.jobs.collectAsState()
     val applicationCounts by viewModel.jobApplicationCounts.collectAsState()
@@ -87,7 +88,7 @@ fun CompanyDashboard(
 
         item {
             OutlinedButton(
-                onClick = { },
+                onClick = onNavigateToSearchCandidates,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
