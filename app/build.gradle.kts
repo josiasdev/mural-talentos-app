@@ -48,6 +48,10 @@ dependencies {
     //noinspection GradleDependency
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
+
+    // Koin
+    implementation("io.insert-koin:koin-android:3.5.3")
+    implementation("io.insert-koin:koin-androidx-compose:3.5.3")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
