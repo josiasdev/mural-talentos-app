@@ -66,6 +66,24 @@ class UserRepository {
         }
     }
 
+    suspend fun getUsersByIds(userIds: List<String>): List<User> {
+        if (userIds.isEmpty()) return emptyList()
+
+        return try {
+            val users = mutableListOf<User>()
+            userIds.distinct().chunked(10).forEach { chunk ->
+                val snapshot = firestore.collection("users")
+                    .whereIn("uid", chunk)
+                    .get()
+                    .await()
+                users.addAll(snapshot.toObjects(User::class.java))
+            }
+            users
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     fun signOut() {
         auth.signOut()
     }
