@@ -37,4 +37,23 @@ class ApplicationRepository {
             0
         }
     }
+
+    suspend fun getApplicationsForJobs(jobIds: List<String>): List<Application> {
+        if (jobIds.isEmpty()) return emptyList()
+
+        return try {
+            val applications = mutableListOf<Application>()
+            jobIds.chunked(10).forEach { chunk ->
+                val snapshot = applicationsCollection
+                    .whereIn("jobId", chunk)
+                    .get()
+                    .await()
+                applications.addAll(snapshot.documents.mapNotNull { it.toObject(Application::class.java)?.copy(id = it.id) })
+            }
+            applications
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 }

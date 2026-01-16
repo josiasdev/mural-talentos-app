@@ -22,6 +22,8 @@ class MainActivity : ComponentActivity() {
         
         // Inicializa o Firebase explicitamente para evitar o erro de inicialização
         FirebaseApp.initializeApp(this)
+
+
         
         enableEdgeToEdge()
         setContent {
