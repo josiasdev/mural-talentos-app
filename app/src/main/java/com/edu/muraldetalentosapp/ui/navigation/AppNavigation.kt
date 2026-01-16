@@ -9,11 +9,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.edu.muraldetalentosapp.ui.LoginScreen
 import com.edu.muraldetalentosapp.ui.RegisterScreen
-import com.edu.muraldetalentosapp.ui.components.AccountType
 import com.edu.muraldetalentosapp.ui.screen.HomeScreen
 import com.edu.muraldetalentosapp.ui.screen.JobMapScreen
 import com.edu.muraldetalentosapp.ui.screen.PostJobScreen
 import com.edu.muraldetalentosapp.ui.screen.ProfileScreen
+import com.edu.muraldetalentosapp.ui.screen.SearchCandidatesScreen
 import com.edu.muraldetalentosapp.viewmodel.AuthViewModel
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 
@@ -24,6 +24,7 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Map : Screen("map")
     object PostJob: Screen("post_job")
+    object SearchCandidates: Screen("search_candidates")
 }
 
 @Composable
@@ -33,10 +34,8 @@ fun AppNavigation(
 ) {
 
     val navController = rememberNavController()
-
     val authViewModel: AuthViewModel = viewModel()
     val jobsViewModel: JobsViewModel = viewModel()
-
     val userType by authViewModel.userType.collectAsState()
 
     NavHost(navController = navController, startDestination = Screen.Login.route) {
@@ -60,7 +59,6 @@ fun AppNavigation(
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
-                    // Após o registro bem-sucedido, navega para a Home limpando a pilha de navegação
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) {
                             inclusive = true
@@ -91,9 +89,11 @@ fun AppNavigation(
                     }
                 },
                 viewModel = jobsViewModel,
-
                 onNavigateToPostJob = {
                     navController.navigate(Screen.PostJob.route)
+                },
+                onNavigateToSearchCandidates = {
+                    navController.navigate(Screen.SearchCandidates.route)
                 },
 
                 userType = userType,
@@ -125,6 +125,11 @@ fun AppNavigation(
             PostJobScreen(
                 viewModel = jobsViewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.SearchCandidates.route) {
+            SearchCandidatesScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
     }
