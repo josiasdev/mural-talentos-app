@@ -7,8 +7,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.edu.muraldetalentosapp.ui.LoginScreen
-import com.edu.muraldetalentosapp.ui.RegisterScreen
+import com.edu.muraldetalentosapp.ui.screen.LoginScreen
+import com.edu.muraldetalentosapp.ui.screen.RegisterScreen
 import com.edu.muraldetalentosapp.ui.screen.HomeScreen
 import com.edu.muraldetalentosapp.ui.screen.JobMapScreen
 import com.edu.muraldetalentosapp.ui.screen.PostJobScreen
@@ -25,6 +25,9 @@ sealed class Screen(val route: String) {
     object Map : Screen("map")
     object PostJob: Screen("post_job")
     object SearchCandidates: Screen("search_candidates")
+    object CandidateList : Screen("candidate_list/{jobId}/{jobTitle}") {
+        fun createRoute(jobId: String, jobTitle: String) = "candidate_list/$jobId/$jobTitle"
+    }
 }
 
 @Composable
@@ -95,6 +98,9 @@ fun AppNavigation(
                 onNavigateToSearchCandidates = {
                     navController.navigate(Screen.SearchCandidates.route)
                 },
+                onNavigateToCandidates = { jobId, jobTitle ->
+                    navController.navigate(Screen.CandidateList.createRoute(jobId, jobTitle))
+                },
 
                 userType = userType,
                 isDarkTheme = isDarkTheme,
@@ -130,6 +136,23 @@ fun AppNavigation(
         composable(Screen.SearchCandidates.route) {
             SearchCandidatesScreen(
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.CandidateList.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("jobId") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("jobTitle") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+            val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: "Candidatos"
+
+            com.edu.muraldetalentosapp.ui.screen.CandidateListScreen(
+                jobId = jobId,
+                jobTitle = jobTitle,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

@@ -33,7 +33,8 @@ import com.google.firebase.auth.FirebaseAuth
 fun CompanyDashboard(
     viewModel: JobsViewModel,
     onNavigateToPostJob: () -> Unit,
-    onNavigateToSearchCandidates: () -> Unit
+    onNavigateToSearchCandidates: () -> Unit,
+    onNavigateToCandidates: (String, String) -> Unit
 ) {
     val allJobs by viewModel.jobs.collectAsState()
     val applicationCounts by viewModel.jobApplicationCounts.collectAsState()
@@ -115,7 +116,10 @@ fun CompanyDashboard(
         items(myJobs) { job ->
             CompanyJobCard(
                 job = job,
-                candidateCount = applicationCounts[job.id] ?: 0
+                candidateCount = applicationCounts[job.id] ?: 0,
+                onViewCandidates = {
+                    onNavigateToCandidates(job.id, job.title)
+                }
             )
         }
     }
@@ -156,7 +160,12 @@ fun StatCard(title: String, count: String, icon: ImageVector, modifier: Modifier
 }
 
 @Composable
-fun CompanyJobCard(job: JobPosting, candidateCount: Int) {
+fun CompanyJobCard(
+    job: JobPosting,
+    candidateCount: Int,
+    onViewCandidates: () -> Unit
+
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -208,7 +217,7 @@ fun CompanyJobCard(job: JobPosting, candidateCount: Int) {
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { },
+                    onClick = onViewCandidates,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
