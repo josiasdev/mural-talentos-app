@@ -41,6 +41,10 @@ fun SearchCandidatesScreen(
 
     var searchQuery by remember { mutableStateOf("") }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadCandidates()
+    }
+
     LaunchedEffect(searchQuery) {
         viewModel.search(searchQuery)
     }
