@@ -3,7 +3,6 @@ package com.edu.muraldetalentosapp.ui.screen
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -38,19 +37,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.edu.muraldetalentosapp.ui.theme.BluePrimary
-import com.edu.muraldetalentosapp.ui.theme.TextGray
-import com.edu.muraldetalentosapp.ui.theme.IconBlue
 import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
-import io.github.jan.supabase.storage.storage
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.edu.muraldetalentosapp.ui.theme.BluePrimary
+import com.edu.muraldetalentosapp.ui.theme.IconBlue
+import com.edu.muraldetalentosapp.ui.theme.TextGray
+// Importante: Importe o ViewModel correto e o Koin
+import com.edu.muraldetalentosapp.viewmodel.ProfileViewModel
+import org.koin.androidx.compose.koinViewModel
 
-// --- UI STATE AND VIEWMODEL ---
+// --- STATES (Mantenha os Data Classes aqui ou mova para um arquivo de State separado) ---
 
 enum class UploadState {
     Idle, Uploading, Success, Error
@@ -67,109 +62,16 @@ data class ProfileUiState(
     val cpfError: String? = null
 )
 
-class ProfileViewModel : ViewModel() {
-    var uiState by mutableStateOf(ProfileUiState())
-        private set
-
-    fun onNameChange(newValue: String) { uiState = uiState.copy(fullName = newValue) }
-    fun onEmailChange(newValue: String) {
-        uiState = uiState.copy(email = newValue)
-        validateEmail()
-    }
-    fun onCpfChange(newValue: String) {
-        if (newValue.all { it.isDigit() } && newValue.length <= 11) {
-            uiState = uiState.copy(cpf = newValue)
-            validateCpf()
-        }
-    }
-
-    fun onFileSelected(uri: Uri, fileName: String) {
-        uiState = uiState.copy(selectedFileUri = uri, fileName = fileName, uploadState = UploadState.Idle)
-    }
-
-    private fun validateEmail() {
-        val email = uiState.email
-        val error = if (email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            "E-mail inválido"
-        } else {
-            null
-        }
-        uiState = uiState.copy(emailError = error)
-    }
-
-    private fun validateCpf() {
-        val cpf = uiState.cpf
-        val error = if (cpf.isNotEmpty() && cpf.length != 11) {
-            "CPF deve ter 11 dígitos"
-        } else {
-            null
-        }
-        uiState = uiState.copy(cpfError = error)
-    }
-
-    fun saveData(context: Context) {
-        validateEmail()
-        validateCpf()
-        if (uiState.emailError == null && uiState.cpfError == null) {
-            val fileUri = uiState.selectedFileUri
-            val fileName = uiState.fileName
-
-            if (fileUri != null && fileName != null) {
-                uploadResume(context, fileUri, fileName)
-            } else {
-                uiState = uiState.copy(uploadState = UploadState.Error, fileName = "Por favor, selecione um arquivo de currículo.")
-            }
-        }
-    }
-
-    private fun uploadResume(context: Context, fileUri: Uri, fileName: String) {
-        // Limpa caracteres especiais do email para usar no path se necessário, mas @ e . costumam ser aceitos
-        val userId = uiState.email.replace(Regex("[^a-zA-Z0-9]"), "_")
-        if (userId.isEmpty()) {
-            uiState = uiState.copy(uploadState = UploadState.Error, fileName = "E-mail obrigatório para o upload.")
-            return
-        }
-
-        uiState = uiState.copy(uploadState = UploadState.Uploading)
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val fileBytes = context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
-                    inputStream.readBytes()
-                } ?: throw Exception("Não foi possível ler o arquivo selecionado.")
-
-                // O path deve ser relativo ao bucket. Se o bucket é "resumes", o path começa após ele.
-                val storagePath = "${userId}/${fileName}"
-
-                com.edu.muraldetalentosapp.data.supabase.SupabaseManager.client.storage.from("resumes").upload(storagePath, fileBytes, upsert = true)
-
-                withContext(Dispatchers.Main) {
-                    uiState = uiState.copy(
-                        uploadState = UploadState.Success,
-                        selectedFileUri = null,
-                        fileName = "Enviado com sucesso: $fileName"
-                    )
-                }
-            } catch (e: Throwable) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    uiState = uiState.copy(
-                        uploadState = UploadState.Error,
-                        fileName = "Erro no upload: ${e.localizedMessage ?: "Causa desconhecida"}"
-                    )
-                }
-            }
-        }
-    }
-}
+// --- A CLASSE ProfileViewModel FOI REMOVIDA DAQUI POIS JÁ EXISTE EM viewmodel/ProfileViewModel.kt ---
 
 // --- COMPOSE SCREEN ---
 
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = viewModel(),
+    // USE koinViewModel() PARA INJETAR O VIEWMODEL CORRETO (COM REPOSITORY)
+    viewModel: ProfileViewModel = koinViewModel(),
     onBackClick: () -> Unit = {},
-    @Suppress("UNUSED_PARAMETER") onNavigateToHome: () -> Unit = {}
+    onNavigateToHome: () -> Unit = {}
 ) {
     val state = viewModel.uiState
     val context = LocalContext.current
@@ -234,7 +136,7 @@ fun ProfileScreen(
                 subtitle = "Faça upload do seu currículo em PDF"
             ) {
                 Text(
-                    text = "Arquivo do Currículo (PDF) *",
+                    text = "Arquivo do Currículo (PDF)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -259,8 +161,10 @@ fun ProfileScreen(
 
             Button(
                 onClick = {
-                    viewModel.saveData(context)
-                    onNavigateToHome()
+                    // ATUALIZADO: Passa a função de sucesso
+                    viewModel.saveData(context) {
+                        onNavigateToHome()
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -280,12 +184,12 @@ fun ProfileScreen(
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Enviando...", fontSize = 16.sp)
+                        Text("Salvando...", fontSize = 16.sp)
                     }
                     UploadState.Success -> {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Enviado!", fontSize = 16.sp)
+                        Text("Salvo!", fontSize = 16.sp)
                     }
                     else -> {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -307,6 +211,8 @@ fun ProfileScreen(
         }
     }
 }
+
+// --- FUNÇÕES AUXILIARES DE UI (MANTIDAS) ---
 
 private fun getFileName(context: Context, uri: Uri): String {
     var result: String? = null
@@ -372,7 +278,7 @@ fun SectionCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // A imagem parece ter uma borda sutil ou sombra, usando elevation padrão
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -399,7 +305,7 @@ fun SectionCard(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp) // Alinha com titulo
+                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp)
             )
 
             content()
@@ -427,7 +333,6 @@ fun CustomTextField(
         )
 
         val borderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-
 
         TextField(
             value = value,
@@ -467,45 +372,23 @@ fun CustomTextField(
     }
 }
 
-private data class UploadStateConfig(
-    val backgroundColor: Color,
-    val textColor: Color,
-    val iconTint: Color,
-    val contentText: String
-)
-
 @Composable
 fun UploadBox(
     fileName: String?,
     uploadState: UploadState,
     onUploadClick: () -> Unit
 ) {
-
     val strokeColor = MaterialTheme.colorScheme.outlineVariant
-
     val stroke = Stroke(
         width = 2f,
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
     )
 
     val config = when (uploadState) {
-        UploadState.Uploading -> {
-            UploadStateConfig(Color(0xFFE0E0E0), Color.Gray, IconBlue, "Enviando...")
-        }
-        UploadState.Success -> {
-            UploadStateConfig(Color(0xFFC8E6C9), Color.Green, Color.Green, "Enviado com sucesso!")
-        }
-        UploadState.Error -> {
-            UploadStateConfig(Color(0xFFFFCDD2), Color.Red, Color.Red, "Erro ao enviar. Tente novamente.")
-        }
-        else -> {
-            UploadStateConfig(
-                Color.Transparent,
-                if (fileName != null) Color.Black else TextGray,
-                IconBlue,
-                fileName ?: "Clique para selecionar o arquivo PDF"
-            )
-        }
+        UploadState.Uploading -> UploadStateConfig(Color(0xFFE0E0E0), Color.Gray, IconBlue, "Enviando...")
+        UploadState.Success -> UploadStateConfig(Color(0xFFC8E6C9), Color.Green, Color.Green, "Enviado com sucesso!")
+        UploadState.Error -> UploadStateConfig(Color(0xFFFFCDD2), Color.Red, Color.Red, "Erro ao enviar.")
+        else -> UploadStateConfig(Color.Transparent, if (fileName != null) Color.Black else TextGray, IconBlue, fileName ?: "Clique para selecionar")
     }
 
     Box(
@@ -513,11 +396,7 @@ fun UploadBox(
             .fillMaxWidth()
             .height(80.dp)
             .drawBehind {
-                drawRoundRect(
-                    color = strokeColor,
-                    style = stroke,
-                    cornerRadius = CornerRadius(8.dp.toPx())
-                )
+                drawRoundRect(color = strokeColor, style = stroke, cornerRadius = CornerRadius(8.dp.toPx()))
             }
             .background(if (uploadState != UploadState.Idle) config.backgroundColor else Color.Transparent)
             .clickable(enabled = uploadState != UploadState.Uploading) { onUploadClick() },
@@ -526,9 +405,7 @@ fun UploadBox(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = when (uploadState) {
-                    UploadState.Uploading -> Icons.Default.Check
-                    UploadState.Success -> Icons.Default.Check
-                    UploadState.Error -> Icons.Default.Check
+                    UploadState.Uploading, UploadState.Success, UploadState.Error -> Icons.Default.Check
                     else -> Icons.Outlined.FileUpload
                 },
                 contentDescription = null,
@@ -544,8 +421,17 @@ fun UploadBox(
     }
 }
 
+private data class UploadStateConfig(
+    val backgroundColor: Color,
+    val textColor: Color,
+    val iconTint: Color,
+    val contentText: String
+)
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewProfile() {
-    ProfileScreen()
+    // Para preview, você precisaria mockar o viewModel, mas como usa koinViewModel,
+    // previews diretos podem quebrar sem configuração extra.
+    // Em produção, use Previews isolados passando state estático.
 }
