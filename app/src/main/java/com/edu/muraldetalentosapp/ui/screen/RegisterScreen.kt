@@ -1,5 +1,6 @@
-package com.edu.muraldetalentosapp.ui
+package com.edu.muraldetalentosapp.ui.screen
 
+import android.util.Patterns
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,12 +21,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edu.muraldetalentosapp.ui.components.AccountTypeButton
 import com.edu.muraldetalentosapp.ui.components.AccountType
 import com.edu.muraldetalentosapp.viewmodel.AuthViewModel
 import com.edu.muraldetalentosapp.viewmodel.AuthState
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +38,18 @@ fun RegisterScreen(
     onNavigateBack: () -> Unit = {},
     viewModel: AuthViewModel
 ) {
+    fun formatPhone(input: String): String {
+        val digits = input.filter { it.isDigit() }.take(11)
+
+        return when (digits.length) {
+            0 -> ""
+            in 1..2 -> "(${digits}"
+            in 3..6 -> "(${digits.substring(0, 2)}) ${digits.substring(2)}"
+            in 7..10 -> "(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6)}"
+            else -> "(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}"
+        }
+    }
+
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
 
@@ -201,22 +217,14 @@ fun RegisterScreen(
                         label = "Telefone",
                         value = phone,
                         onValueChange = { input ->
-                            val digits = input.filter { it.isDigit() }.take(11)
-                            var formatted = ""
-                            if (digits.isNotEmpty()) {
-                                formatted = "(" + digits.substring(0, minOf(2, digits.length))
-                                if (digits.length > 2) {
-                                    formatted += ") " + digits.substring(2, minOf(7, digits.length))
-                                    if (digits.length > 7) {
-                                        formatted += "-" + digits.substring(7, digits.length)
-                                    }
-                                }
+                            phone = formatPhone(input)
+                            if (phoneError != null) {
+                                phoneError = null
                             }
-                            phone = formatted
-                            if (phoneError != null) phoneError = null
                         },
                         placeholder = "(11) 99999-9999",
-                        errorMessage = phoneError
+                        errorMessage = phoneError,
+                        keyboardType = KeyboardType.Phone
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -284,9 +292,12 @@ fun RegisterScreen(
 
                             if (name.isBlank()) { nameError = "Este campo é obrigatório"; isValid = false }
                             if (email.isBlank()) { emailError = "E-mail é obrigatório"; isValid = false }
-                            else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { emailError = "E-mail inválido"; isValid = false }
+                            else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) { emailError = "E-mail inválido"; isValid = false }
 
-                            if (phone.isBlank()) { phoneError = "Telefone é obrigatório"; isValid = false }
+                            val phoneDigits = phone.filter { it.isDigit() }
+                            if (phoneDigits.length < 10) {
+                                phoneError = "Telefone inválido"; isValid = false
+                            }
 
                             if (password.isBlank()) { passwordError = "Senha é obrigatória"; isValid = false }
                             else if (password.length < 6) { passwordError = "Mínimo 6 caracteres"; isValid = false }
@@ -331,7 +342,8 @@ fun RegisterTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isPassword: Boolean = false,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -361,9 +373,10 @@ fun RegisterTextField(
                 errorContainerColor = Color(0xFFFFF0F0),
                 errorIndicatorColor = Color.Red
             ),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             singleLine = true,
-            isError = errorMessage != null
+            isError = errorMessage != null,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
         )
 
         if (errorMessage != null) {

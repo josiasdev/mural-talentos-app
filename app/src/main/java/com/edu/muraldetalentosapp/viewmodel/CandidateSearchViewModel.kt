@@ -34,10 +34,6 @@ class CandidateSearchViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    init {
-        loadCandidates()
-    }
-
     fun loadCandidates() {
         val currentCompanyId = auth.currentUser?.uid ?: return
         _isLoading.value = true
@@ -50,32 +46,45 @@ class CandidateSearchViewModel(
                 if (myJobIds.isNotEmpty()) {
                     val applications = applicationRepository.getApplicationsForJobs(myJobIds)
 
-                    val candidateIds = applications.map { it.candidateId }.distinct()
+                    if (applications.isNotEmpty()) {
+                        val candidateIds = applications.map { it.candidateId }.distinct()
 
-                    val users = userRepository.getUsersByIds(candidateIds)
+                        val users = userRepository.getUsersByIds(candidateIds)
 
-                    val uiList = users.map { user ->
-                        val count = applications.count { it.candidateId == user.uid }
+                        val uiList = users.map { user ->
+                            val count = applications.count { it.candidateId == user.uid }
 
-                        val initials = user.name.split(" ")
-                            .take(2)
-                            .mapNotNull { it.firstOrNull()?.toString() }
-                            .joinToString("")
-                            .uppercase()
+                            val initials = if (user.name.isNotBlank()) {
+                                user.name.split(" ")
+                                    .take(2)
+                                    .mapNotNull { it.firstOrNull()?.toString() }
+                                    .joinToString("")
+                                    .uppercase()
+                            } else {
+                                "??"
+                            }
 
-                        CandidateUiItem(
-                            user = user,
-                            applicationsCount = count,
-                            hasResume = true, // Lógica futura
-                            registrationDateFormatted = "14/10/2025", // Mock temporário
-                            initials = initials
-                        )
+                            CandidateUiItem(
+                                user = user,
+                                applicationsCount = count,
+                                hasResume = true,
+                                registrationDateFormatted = "14/10/2025",
+                                initials = initials
+                            )
+                        }
+                        _candidates.value = uiList
+                        _filteredCandidates.value = uiList
+                    } else {
+                        _candidates.value = emptyList()
+                        _filteredCandidates.value = emptyList()
                     }
-                    _candidates.value = uiList
-                    _filteredCandidates.value = uiList
+                } else {
+                    _candidates.value = emptyList()
+                    _filteredCandidates.value = emptyList()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _candidates.value = emptyList()
             } finally {
                 _isLoading.value = false
             }

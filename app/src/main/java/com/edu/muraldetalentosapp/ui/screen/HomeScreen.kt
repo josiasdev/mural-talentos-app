@@ -39,6 +39,7 @@ fun HomeScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToPostJob: () -> Unit = {},
     onNavigateToSearchCandidates: () -> Unit,
+    onNavigateToCandidates: (String, String) -> Unit,
     userType: AccountType?,
     viewModel: JobsViewModel,
     isDarkTheme: Boolean,
@@ -100,7 +101,8 @@ fun HomeScreen(
                 CompanyDashboard(
                     viewModel = viewModel,
                     onNavigateToPostJob = onNavigateToPostJob,
-                    onNavigateToSearchCandidates = onNavigateToSearchCandidates
+                    onNavigateToSearchCandidates = onNavigateToSearchCandidates,
+                    onNavigateToCandidates = onNavigateToCandidates
                 )
             } else {
                 CandidateFeedContent(
