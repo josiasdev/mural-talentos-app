@@ -66,6 +66,12 @@ class JobsViewModel : ViewModel() {
     private val _jobApplicationCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
     val jobApplicationCounts: StateFlow<Map<String, Int>> = _jobApplicationCounts.asStateFlow()
 
+    private val _applyAlert = MutableStateFlow<String?>(null)
+    val applyAlert: StateFlow<String?> = _applyAlert.asStateFlow()
+
+    private val _isUploadingImage = MutableStateFlow(false)
+    val isUploadingImage: StateFlow<Boolean> = _isUploadingImage.asStateFlow()
+
     private var jobsListener: ListenerRegistration? = null
     private var appsListener: ListenerRegistration? = null
     private var countsListener: ListenerRegistration? = null
@@ -150,6 +156,21 @@ class JobsViewModel : ViewModel() {
         applyToJob(jobId)
     }
 
+    fun closeJob(jobId: String) {
+        // Fecha a vaga no repositório e atualiza um estado de loading enquanto opera
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                jobRepository.closeJob(jobId)
+                Log.d("JobsViewModel", "Vaga $jobId fechada com sucesso")
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao fechar vaga $jobId", e)
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
     fun onTitleChange(newValue: String) { _uiState.update { it.copy(title = newValue, titleError = false) } }
     fun onDescriptionChange(newValue: String) { _uiState.update { it.copy(description = newValue, descriptionError = false) } }
     fun onLocationChange(newValue: String) { _uiState.update { it.copy(location = newValue, locationError = false) } }
@@ -162,6 +183,25 @@ class JobsViewModel : ViewModel() {
 
     fun resetSuccessMessage() {
         _uiState.update { it.copy(isPostedSuccess = false) }
+    }
+
+    fun setApplyAlert(message: String?) {
+        _applyAlert.value = message
+    }
+    fun clearApplyAlert() {
+        _applyAlert.value = null
+    }
+
+    // Adicione lógica para verificar se o cadastro está completo ao aplicar para vaga
+    fun checkUserRegistrationAndApply(jobId: String) {
+        val currentUser = auth.currentUser ?: return
+        // Exemplo: supondo que o cadastro incompleto é detectado por algum critério
+        val isRegistrationComplete = true // TODO: implementar verificação real
+        if (!isRegistrationComplete) {
+            setApplyAlert("Complete seu cadastro para se candidatar à vaga.")
+        } else {
+            applyToJob(jobId)
+        }
     }
 
     fun publishJob() {
@@ -210,6 +250,23 @@ class JobsViewModel : ViewModel() {
                 _uiState.update { PostJobUiState(isPostedSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun uploadImage(context: android.content.Context, uri: android.net.Uri) {
+        _isUploadingImage.value = true
+        viewModelScope.launch {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val imageUrl = jobRepository.uploadJobImage(bytes)
+                    onImageUrlChange(imageUrl)
+                }
+            } catch (e: Exception) {
+                // Trate o erro conforme necessário
+            } finally {
+                _isUploadingImage.value = false
             }
         }
     }
