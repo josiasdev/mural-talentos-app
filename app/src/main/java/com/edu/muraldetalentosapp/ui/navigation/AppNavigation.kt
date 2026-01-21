@@ -1,5 +1,6 @@
 package com.edu.muraldetalentosapp.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -26,7 +27,7 @@ sealed class Screen(val route: String) {
     object PostJob: Screen("post_job")
     object SearchCandidates: Screen("search_candidates")
     object CandidateList : Screen("candidate_list/{jobId}/{jobTitle}") {
-        fun createRoute(jobId: String, jobTitle: String) = "candidate_list/$jobId/$jobTitle"
+        fun createRoute(jobId: String, jobTitle: String) = "candidate_list/$jobId/${Uri.encode(jobTitle)}"
     }
 }
 
@@ -147,7 +148,8 @@ fun AppNavigation(
             )
         ) { backStackEntry ->
             val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
-            val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: "Candidatos"
+            val rawTitle = backStackEntry.arguments?.getString("jobTitle") ?: "Candidatos"
+            val jobTitle = try { Uri.decode(rawTitle) } catch (_: Exception) { rawTitle }
 
             com.edu.muraldetalentosapp.ui.screen.CandidateListScreen(
                 jobId = jobId,

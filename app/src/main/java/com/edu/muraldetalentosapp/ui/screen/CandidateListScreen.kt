@@ -1,7 +1,6 @@
 package com.edu.muraldetalentosapp.ui.screen
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,6 +31,7 @@ import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,7 +96,7 @@ fun CandidateContent(
     totalCount: Int,
     pendingCount: Int
 ) {
-    Column(modifier = Modifier.padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SuggestionChip(
                 onClick = {},
@@ -121,6 +121,7 @@ fun CandidateContent(
             }
         } else {
             LazyColumn(
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
@@ -215,7 +216,7 @@ fun RealCandidateCard(candidate: CandidateUiModel) {
                 Button(
                     onClick = {
                         val intent = Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:${candidate.email}")
+                            data = "mailto:${candidate.email}".toUri()
                             putExtra(Intent.EXTRA_SUBJECT, "Contato sobre a vaga: Mural de Talentos")
                         }
                         context.startActivity(intent)
@@ -236,7 +237,7 @@ fun RealCandidateCard(candidate: CandidateUiModel) {
             OutlinedButton(
                 onClick = {
                     if (candidate.resumeUrl != null) {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(candidate.resumeUrl))
+                        val intent = Intent(Intent.ACTION_VIEW, candidate.resumeUrl.toUri())
                         context.startActivity(intent)
                     }
                 },

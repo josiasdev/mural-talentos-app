@@ -22,20 +22,34 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
             .get()
             .await()
 
-        val applications = applicationsSnapshot.toObjects(Application::class.java)
+        // Mapeia cada documento para Application e preserva o document id
+        val applications = applicationsSnapshot.documents.mapNotNull { doc ->
+            try {
+                doc.toObject(Application::class.java)?.copy(id = doc.id)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
         val candidatesList = mutableListOf<CandidateUiModel>()
 
-
         for (app in applications) {
+            // Segurança: requisições externas somente se candidateId estiver presente
+            val candidateId = app.candidateId
+            if (candidateId.isBlank()) continue
+
             try {
                 val userSnapshot = db.collection("users")
-                    .document(app.candidateId)
+                    .document(candidateId)
                     .get()
                     .await()
 
                 val user = userSnapshot.toObject(User::class.java)
 
                 if (user != null) {
+                    // Tenta ler resumeUrl do documento (salvo no profile do candidato)
+                    val resumeUrl = userSnapshot.getString("resumeUrl")
+
                     candidatesList.add(
                         CandidateUiModel(
                             applicationId = app.id,
@@ -44,7 +58,8 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
                             email = user.email,
                             phone = user.phone,
                             appliedAt = app.appliedAt,
-                            status = app.status
+                            status = app.status,
+                            resumeUrl = resumeUrl
                         )
                     )
                 }
@@ -53,11 +68,14 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
             }
         }
 
-        val total = candidatesList.size
-        val pending = candidatesList.count { it.status == ApplicationStatus.PENDING }
+        // Ordena por data de candidatura (mais recente primeiro)
+        val sorted = candidatesList.sortedByDescending { it.appliedAt }
+
+        val total = sorted.size
+        val pending = sorted.count { it.status == ApplicationStatus.PENDING }
 
         return CandidatesResult(
-            candidates = candidatesList,
+            candidates = sorted,
             totalCount = total,
             pendingCount = pending
         )
