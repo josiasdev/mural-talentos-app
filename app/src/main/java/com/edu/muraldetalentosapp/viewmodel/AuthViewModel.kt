@@ -2,8 +2,8 @@ package com.edu.muraldetalentosapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.edu.muraldetalentosapp.data.model.User
-import com.edu.muraldetalentosapp.data.repository.UserRepository
+import com.edu.muraldetalentosapp.data.repository.AuthRepository
+import com.edu.muraldetalentosapp.data.repository.AuthResult
 import com.edu.muraldetalentosapp.ui.components.AccountType
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,8 +18,9 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
-class AuthViewModel : ViewModel() {
-    private val userRepository = UserRepository()
+class AuthViewModel(
+    private val authRepository: AuthRepository = AuthRepository()
+) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -35,15 +36,15 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                val firebaseUser = userRepository.signIn(email, password)
-                if (firebaseUser != null) {
-                    val profile = userRepository.getUserProfile(firebaseUser.uid)
-                    profile?.let {
-                        _userType.value = it.type
+                when (val result = authRepository.signIn(email, password)) {
+                    is AuthResult.Success -> {
+                        val firebaseUser = result.firebaseUser
+                        result.profile?.let { _userType.value = it.type }
+                        _authState.value = AuthState.Success(firebaseUser)
                     }
-                    _authState.value = AuthState.Success(firebaseUser)
-                } else {
-                    _authState.value = AuthState.Error("Login falhou: usuário nulo")
+                    is AuthResult.Error -> {
+                        _authState.value = AuthState.Error(result.message)
+                    }
                 }
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.message ?: "Login falhou")
@@ -59,19 +60,15 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                val userModel = User(
-                    name = name,
-                    email = email,
-                    type = type,
-                    phone = phone,
-                    about = about
-                )
-                val firebaseUser = userRepository.signUp(userModel, password)
-                if (firebaseUser != null) {
-                    _userType.value = type
-                    _authState.value = AuthState.Success(firebaseUser)
-                } else {
-                    _authState.value = AuthState.Error("Cadastro falhou: usuário nulo")
+                when (val result = authRepository.signUp(email, password, name, type, phone, about)) {
+                    is AuthResult.Success -> {
+                        val firebaseUser = result.firebaseUser
+                        result.profile?.let { _userType.value = it.type }
+                        _authState.value = AuthState.Success(firebaseUser)
+                    }
+                    is AuthResult.Error -> {
+                        _authState.value = AuthState.Error(result.message)
+                    }
                 }
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.message ?: "Cadastro falhou")
@@ -80,7 +77,7 @@ class AuthViewModel : ViewModel() {
     }
 
     fun signOut() {
-        userRepository.signOut()
+        authRepository.signOut()
         _authState.value = AuthState.Idle
         _userType.value = AccountType.CANDIDATE
     }
