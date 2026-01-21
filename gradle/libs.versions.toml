@@ -17,7 +17,8 @@ navigationCompose = "2.8.0"
 googleServices = "4.4.2"
 firebaseBom = "33.7.0"
 
-osmdroid = "6.1.18"
+mapsCompose = "4.4.1"
+playServicesMaps = "19.0.0"
 coroutinesPlayServices = "1.8.1"
 
 
@@ -54,7 +55,8 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 
-osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 
 
 [plugins]
