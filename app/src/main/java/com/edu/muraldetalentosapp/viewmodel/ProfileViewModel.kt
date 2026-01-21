@@ -118,6 +118,9 @@ class ProfileViewModel(
                 )
                 userRepository.saveCandidateProfile(profile)
 
+                // Novo: se salvou profile com sucesso, marca o usuário como completo
+                userRepository.markUserComplete(user.uid)
+
                 withContext(Dispatchers.Main) {
                     uiState = uiState.copy(uploadState = UploadState.Success)
                     Toast.makeText(context, "Perfil salvo!", Toast.LENGTH_SHORT).show()

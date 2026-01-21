@@ -109,6 +109,15 @@ class UserRepository {
             .await()
     }
 
+    // Novo: marca o usuário como completo (isComplete = true)
+    suspend fun markUserComplete(uid: String) {
+        try {
+            usersCollection.document(uid).update(mapOf("isComplete" to true)).await()
+        } catch (e: Exception) {
+            // Falha ao atualizar não deve quebrar o fluxo principal; log pode ser adicionado se desejar
+        }
+    }
+
     suspend fun getCandidateProfile(): CandidateProfile? {
         val uid = auth.currentUser?.uid ?: return null
         return try {

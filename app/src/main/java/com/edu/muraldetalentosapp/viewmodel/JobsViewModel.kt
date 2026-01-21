@@ -21,6 +21,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
 
 data class PostJobUiState(
     val title: String = "",
@@ -50,6 +51,10 @@ class JobsViewModel : ViewModel() {
     private val _dbAppliedIds = MutableStateFlow<Set<String>>(emptySet())
     
     private val _optimisticAppliedIds = MutableStateFlow<Set<String>>(emptySet())
+
+    // Nova flow para comunicar alertas ao UI quando o usuário não completou o cadastro
+    private val _applyAlert = MutableStateFlow<String?>(null)
+    val applyAlert: StateFlow<String?> = _applyAlert.asStateFlow()
 
     val jobs: StateFlow<List<JobPosting>> = combine(
         _rawJobs, _dbAppliedIds, _optimisticAppliedIds
@@ -115,23 +120,46 @@ class JobsViewModel : ViewModel() {
 
     fun applyToJob(jobId: String) {
         val currentUser = auth.currentUser ?: return
-        
-        _optimisticAppliedIds.update { it + jobId }
-        Log.d("JobsViewModel", "Adicionado ao cache otimista: $jobId")
 
+        // Checagem do campo `isComplete` no Firestore antes de aplicar.
         viewModelScope.launch {
             try {
-                val application = Application(
-                    jobId = jobId,
-                    candidateId = currentUser.uid
-                )
-                applicationRepository.applyToJob(application)
-                Log.d("JobsViewModel", "Sucesso no Firestore para $jobId")
+                val userDoc = db.collection("users").document(currentUser.uid).get().await()
+                val isComplete = userDoc.getBoolean("isComplete") ?: false
+
+                if (!isComplete) {
+                    // Expor mensagem de alerta para a UI mostrar um aviso vermelho
+                    _applyAlert.value = "Complete seu cadastro e adicione o currículo antes de se candidatar a vagas."
+                    Log.d("JobsViewModel", "Usuário não completou cadastro: abortando candidatura para $jobId")
+                    return@launch
+                }
+
+                // Agora que está completo, procedemos com a inscrição (cache otimista e persistência)
+                _optimisticAppliedIds.update { it + jobId }
+                Log.d("JobsViewModel", "Adicionado ao cache otimista: $jobId")
+
+                try {
+                    val application = Application(
+                        jobId = jobId,
+                        candidateId = currentUser.uid
+                    )
+                    applicationRepository.applyToJob(application)
+                    Log.d("JobsViewModel", "Sucesso no Firestore para $jobId")
+                } catch (e: Exception) {
+                    Log.e("JobsViewModel", "Erro ao salvar, removendo do cache otimista", e)
+                    _optimisticAppliedIds.update { it - jobId }
+                }
+
             } catch (e: Exception) {
-                Log.e("JobsViewModel", "Erro ao salvar, removendo do cache otimista", e)
-                _optimisticAppliedIds.update { it - jobId }
+                Log.e("JobsViewModel", "Erro ao verificar isComplete do usuário", e)
+                _applyAlert.value = "Não foi possível verificar o status do perfil. Tente novamente mais tarde."
             }
         }
+    }
+
+    // Método para permitir que a UI limpe o alerta após exibir
+    fun clearApplyAlert() {
+        _applyAlert.value = null
     }
 
     fun fetchJobs() {

@@ -8,5 +8,6 @@ data class User(
     val email: String = "",
     val type: AccountType = AccountType.CANDIDATE,
     val phone: String = "",
-    val about: String = ""
+    val about: String = "",
+    val isComplete: Boolean = false
 )
