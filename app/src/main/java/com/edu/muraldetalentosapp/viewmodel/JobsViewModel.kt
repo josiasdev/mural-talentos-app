@@ -7,6 +7,7 @@ import com.edu.muraldetalentosapp.data.model.Application
 import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.edu.muraldetalentosapp.data.repository.ApplicationRepository
 import com.edu.muraldetalentosapp.data.repository.JobPostingRepository
+import com.edu.muraldetalentosapp.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -46,6 +47,7 @@ class JobsViewModel : ViewModel() {
     private val applicationRepository = ApplicationRepository()
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
+    private val userRepository = UserRepository()
 
     private val _rawJobs = MutableStateFlow<List<JobPosting>>(emptyList())
     
@@ -123,11 +125,27 @@ class JobsViewModel : ViewModel() {
 
     fun applyToJob(jobId: String) {
         val currentUser = auth.currentUser ?: return
-        
-        _optimisticAppliedIds.update { it + jobId }
-        Log.d("JobsViewModel", "Adicionado ao cache otimista: $jobId")
 
+        // Verifica se o usuário tem cadastro completo antes de aplicar
         viewModelScope.launch {
+            val userProfile = try {
+                userRepository.getUserProfile(currentUser.uid)
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao buscar perfil do usuário", e)
+                null
+            }
+
+            if (userProfile?.isComplete != true) {
+                // Usuário incompleto: exibe alerta direcionando para completar o perfil
+                setApplyAlert("Complete seu cadastro para se candidatar à vaga.")
+                Log.d("JobsViewModel", "Usuário não completo - aplicação bloqueada para vaga $jobId")
+                return@launch
+            }
+
+            // Usuário completo: prossegue com a aplicação (cache otimista)
+            _optimisticAppliedIds.update { it + jobId }
+            Log.d("JobsViewModel", "Adicionado ao cache otimista: $jobId")
+
             try {
                 val application = Application(
                     jobId = jobId,
@@ -136,7 +154,7 @@ class JobsViewModel : ViewModel() {
                 applicationRepository.applyToJob(application)
                 Log.d("JobsViewModel", "Sucesso no Firestore para $jobId")
             } catch (e: Exception) {
-                Log.e("JobsViewModel", "Erro ao salvar, removendo do cache otimista", e)
+                Log.e("JobsViewModel", "Erro ao salvar aplicação no Firestore, removendo do cache otimista", e)
                 _optimisticAppliedIds.update { it - jobId }
             }
         }
@@ -195,18 +213,6 @@ class JobsViewModel : ViewModel() {
         _applyAlert.value = null
     }
 
-    // Adicione lógica para verificar se o cadastro está completo ao aplicar para vaga
-    fun checkUserRegistrationAndApply(jobId: String) {
-        val currentUser = auth.currentUser ?: return
-        // Exemplo: supondo que o cadastro incompleto é detectado por algum critério
-        val isRegistrationComplete = true // TODO: implementar verificação real
-        if (!isRegistrationComplete) {
-            setApplyAlert("Complete seu cadastro para se candidatar à vaga.")
-        } else {
-            applyToJob(jobId)
-        }
-    }
-
     fun publishJob() {
         val state = _uiState.value
         var hasError = false
@@ -252,6 +258,7 @@ class JobsViewModel : ViewModel() {
                 jobRepository.saveJobPosting(newJob)
                 _uiState.update { PostJobUiState(isPostedSuccess = true) }
             } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao publicar vaga", e)
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
@@ -267,6 +274,7 @@ class JobsViewModel : ViewModel() {
                     onImageUrlChange(imageUrl)
                 }
             } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao enviar imagem da vaga", e)
                 // Trate o erro conforme necessário
             } finally {
                 _isUploadingImage.value = false

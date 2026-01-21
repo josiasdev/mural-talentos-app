@@ -20,6 +20,7 @@ firebaseBom = "33.7.0"
 mapsCompose = "4.4.1"
 playServicesMaps = "19.0.0"
 coroutinesPlayServices = "1.8.1"
+playServicesMapsVersion = "20.0.0"
 
 
 [libraries]
@@ -57,6 +58,7 @@ kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "ko
 
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+gms-play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMapsVersion" }
 
 
 [plugins]

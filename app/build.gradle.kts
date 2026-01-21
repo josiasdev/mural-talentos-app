@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.maps.compose)
     implementation(libs.play.services.maps)
+    implementation(libs.gms.play.services.maps)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

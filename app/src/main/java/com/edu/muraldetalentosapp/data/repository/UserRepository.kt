@@ -45,7 +45,8 @@ class UserRepository {
             "email" to user.email,
             "type" to user.type.name,
             "phone" to user.phone,
-            "about" to user.about
+            "about" to user.about,
+            "isComplete" to user.isComplete // Garante que o campo seja salvo
         )
         usersCollection.document(user.uid).set(userMap).await()
     }
@@ -61,7 +62,8 @@ class UserRepository {
                     email = data?.get("email") as? String ?: "",
                     type = AccountType.valueOf(data?.get("type") as? String ?: "CANDIDATE"),
                     phone = data?.get("phone") as? String ?: "",
-                    about = data?.get("about") as? String ?: ""
+                    about = data?.get("about") as? String ?: "",
+                    isComplete = data?.get("isComplete") as? Boolean ?: false // Lê o campo corretamente
                 )
             } else {
                 null
