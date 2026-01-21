@@ -36,7 +36,9 @@ data class PostJobUiState(
     val contractError: Boolean = false,
     val salaryError: Boolean = false,
     val isPostedSuccess: Boolean = false,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 class JobsViewModel : ViewModel() {
@@ -180,6 +182,7 @@ class JobsViewModel : ViewModel() {
         _uiState.update { it.copy(isSalaryNegotiable = newValue, salaryError = false) }
     }
     fun onImageUrlChange(newValue: String) { _uiState.update { it.copy(imageUrl = newValue) } }
+    fun onLatLongChange(lat: Double, long: Double) { _uiState.update { it.copy(latitude = lat, longitude = long) } }
 
     fun resetSuccessMessage() {
         _uiState.update { it.copy(isPostedSuccess = false) }
@@ -241,8 +244,8 @@ class JobsViewModel : ViewModel() {
                 expirationDate = expirationTimestamp,
                 isApplied = false,
                 imageUrl = state.imageUrl.ifBlank { null },
-                latitude = -4.9685, 
-                longitude = -39.0150
+                latitude = state.latitude ?: -4.9685, 
+                longitude = state.longitude ?: -39.0150
             )
 
             try {

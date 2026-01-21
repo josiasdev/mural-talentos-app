@@ -31,6 +31,9 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", localProperties["SUPABASE_URL"] as String? ?: "\"\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", localProperties["SUPABASE_ANON_KEY"] as String? ?: "\"\"")
+
+        val mapsApiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
 
     buildFeatures {
@@ -81,7 +84,8 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.foundation)
-    implementation(libs.osmdroid.android)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -97,4 +101,5 @@ dependencies {
     
     // Ktor Engine (Obrigatório para o Supabase no Android)
     implementation("io.ktor:ktor-client-okhttp:2.3.12")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }
