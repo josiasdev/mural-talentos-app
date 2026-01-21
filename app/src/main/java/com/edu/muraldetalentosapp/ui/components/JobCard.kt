@@ -10,7 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.edu.muraldetalentosapp.data.model.JobPosting
 
 @Composable
@@ -26,6 +29,19 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
 
             Text(text = job.title, style = MaterialTheme.typography.titleMedium)
             Text(text = job.company, style = MaterialTheme.typography.bodyMedium)
+
+            if (!job.imageUrl.isNullOrBlank()) {
+                Spacer(Modifier.height(12.dp))
+                AsyncImage(
+                    model = job.imageUrl,
+                    contentDescription = "Imagem da vaga",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp) // Altura agradável para destaque
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 

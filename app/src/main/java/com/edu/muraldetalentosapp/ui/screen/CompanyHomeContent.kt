@@ -18,16 +18,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
-import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import coil.compose.AsyncImage
 
 @Composable
 fun CompanyDashboard(
@@ -198,6 +199,19 @@ fun CompanyJobCard(
             }
 
             Spacer(Modifier.height(12.dp))
+
+            if (!job.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = job.imageUrl,
+                    contentDescription = "Imagem da vaga",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.height(12.dp))
+            }
 
             Text(
                 job.description,

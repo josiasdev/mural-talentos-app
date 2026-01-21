@@ -1,5 +1,6 @@
 package com.edu.muraldetalentosapp.ui.screen
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -29,6 +30,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,9 +42,17 @@ fun PostJobScreen(
     onNavigateBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-
+    val isUploading by viewModel.isUploadingImage.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.uploadImage(context, it)
+        }
+    }
 
     LaunchedEffect(state.isPostedSuccess) {
         if (state.isPostedSuccess) {
@@ -207,11 +220,17 @@ fun PostJobScreen(
                             shape = RoundedCornerShape(8.dp)
                         )
                         .background(Color.Transparent, RoundedCornerShape(8.dp))
-                        .clickable { viewModel.onImageUrlChange("imagem_mockada.jpg") }, // Simula upload
+                        .clickable {
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (state.imageUrl.isNotBlank()) {
-                        Text("Imagem selecionada!", color = BluePrimary)
+                    if (isUploading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    } else if (state.imageUrl.isNotBlank() && state.imageUrl != "imagem_mockada.jpg") {
+                        Text("Imagem carregada com sucesso!", color = BluePrimary)
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.UploadFile, contentDescription = null, tint = BluePrimary)
