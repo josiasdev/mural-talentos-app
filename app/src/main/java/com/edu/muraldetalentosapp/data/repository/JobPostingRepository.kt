@@ -2,7 +2,8 @@ package com.edu.muraldetalentosapp.data.repository
 
 import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import com.edu.muraldetalentosapp.data.supabase.SupabaseManager
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -12,6 +13,15 @@ class JobPostingRepository {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val jobsCollection by lazy { firestore.collection("jobs") }
 
+    private val storageBucket = SupabaseManager.client.storage.from("job-images")
+
+    suspend fun uploadJobImage(imageBytes: ByteArray): String {
+        val fileName = "job_${System.currentTimeMillis()}.jpg"
+
+        storageBucket.upload(fileName, imageBytes, upsert = true)
+
+        return storageBucket.publicUrl(fileName)
+    }
     suspend fun saveJobPosting(job: JobPosting): String {
         val jobMap = mapOf(
             "title" to job.title,
@@ -88,7 +98,9 @@ class JobPostingRepository {
         }
     }
 
-    suspend fun deleteJobPosting(jobId: String) {
-        jobsCollection.document(jobId).delete().await()
+    suspend fun closeJob(jobId: String) {
+        jobsCollection.document(jobId)
+            .update("isActive", false)
+            .await()
     }
 }

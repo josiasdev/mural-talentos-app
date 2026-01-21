@@ -62,7 +62,7 @@ android {
 dependencies {
     //noinspection GradleDependency
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
-
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Koin
     implementation("io.insert-koin:koin-android:3.5.3")

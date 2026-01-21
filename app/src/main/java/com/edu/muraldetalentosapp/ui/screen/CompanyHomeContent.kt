@@ -15,26 +15,30 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
-import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import coil.compose.AsyncImage
 
 @Composable
 fun CompanyDashboard(
     viewModel: JobsViewModel,
     onNavigateToPostJob: () -> Unit,
     onNavigateToSearchCandidates: () -> Unit,
-    onNavigateToCandidates: (String, String) -> Unit
+    onNavigateToCandidates: (String, String) -> Unit,
 ) {
     val allJobs by viewModel.jobs.collectAsState()
     val applicationCounts by viewModel.jobApplicationCounts.collectAsState()
@@ -44,6 +48,33 @@ fun CompanyDashboard(
     
     val activeJobsCount = myJobs.size
     val totalCandidates = myJobs.sumOf { applicationCounts[it.id] ?: 0 }
+    var jobToClose by remember { mutableStateOf<JobPosting?>(null) }
+
+    if (jobToClose != null) {
+        AlertDialog(
+            onDismissRequest = { jobToClose = null },
+            title = { Text(text = "Fechar Vaga?") },
+            text = { Text("Tem certeza que deseja encerrar a vaga '${jobToClose?.title}'? Ela deixará de aparecer para novos candidatos.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        jobToClose?.let { job ->
+                            viewModel.closeJob(job.id)
+                        }
+                        jobToClose = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Sim, Fechar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { jobToClose = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -119,6 +150,9 @@ fun CompanyDashboard(
                 candidateCount = applicationCounts[job.id] ?: 0,
                 onViewCandidates = {
                     onNavigateToCandidates(job.id, job.title)
+                },
+                onCloseJob = {
+                    jobToClose = job
                 }
             )
         }
@@ -163,8 +197,8 @@ fun StatCard(title: String, count: String, icon: ImageVector, modifier: Modifier
 fun CompanyJobCard(
     job: JobPosting,
     candidateCount: Int,
-    onViewCandidates: () -> Unit
-
+    onViewCandidates: () -> Unit,
+    onCloseJob: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -199,6 +233,19 @@ fun CompanyJobCard(
 
             Spacer(Modifier.height(12.dp))
 
+            if (!job.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = job.imageUrl,
+                    contentDescription = "Imagem da vaga",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
             Text(
                 job.description,
                 maxLines = 2,
@@ -229,7 +276,7 @@ fun CompanyJobCard(
                 }
 
                 OutlinedButton(
-                    onClick = {  },
+                    onClick = onCloseJob,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
