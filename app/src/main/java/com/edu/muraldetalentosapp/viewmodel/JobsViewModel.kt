@@ -1,5 +1,6 @@
 package com.edu.muraldetalentosapp.viewmodel
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.edu.muraldetalentosapp.data.repository.JobPostingRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +52,30 @@ class JobsViewModel : ViewModel() {
     private val _dbAppliedIds = MutableStateFlow<Set<String>>(emptySet())
     
     private val _optimisticAppliedIds = MutableStateFlow<Set<String>>(emptySet())
+
+    private val _isUploadingImage = MutableStateFlow(false)
+    val isUploadingImage = _isUploadingImage.asStateFlow()
+
+    fun uploadImage(context: android.content.Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isUploadingImage.value = true
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use {
+                    it.readBytes()
+                }
+
+                if (bytes != null) {
+                    val url = jobRepository.uploadJobImage(bytes)
+                    onImageUrlChange(url)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Aqui você poderia setar um erro de UI se quisesse
+            } finally {
+                _isUploadingImage.value = false
+            }
+        }
+    }
 
     val jobs: StateFlow<List<JobPosting>> = combine(
         _rawJobs, _dbAppliedIds, _optimisticAppliedIds
