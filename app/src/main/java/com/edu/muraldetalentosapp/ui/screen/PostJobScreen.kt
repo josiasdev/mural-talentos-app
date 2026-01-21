@@ -163,6 +163,70 @@ fun PostJobScreen(
                     isError = state.contractError
                 )
             }
+            
+            SectionCard(
+                title = "Localização no Mapa",
+                subtitle = "Toque no mapa para definir o local exato",
+                icon = Icons.Outlined.BusinessCenter
+            ) {
+                 val quixada = com.google.android.gms.maps.model.LatLng(-4.9685, -39.0150)
+                 var markerPosition by remember { 
+                     mutableStateOf(
+                         if (state.latitude != null && state.longitude != null) 
+                             com.google.android.gms.maps.model.LatLng(state.latitude!!, state.longitude!!) 
+                         else null
+                     ) 
+                 }
+                 
+                 val cameraPositionState = com.google.maps.android.compose.rememberCameraPositionState {
+                     position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(quixada, 13f)
+                 }
+
+                 Box(
+                     modifier = Modifier
+                         .fillMaxWidth()
+                         .height(300.dp)
+                         .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                 ) {
+                     com.google.maps.android.compose.GoogleMap(
+                         modifier = Modifier.fillMaxSize(),
+                         cameraPositionState = cameraPositionState,
+                         onMapClick = { latLng ->
+                             markerPosition = latLng
+                             viewModel.onLatLongChange(latLng.latitude, latLng.longitude)
+                             
+                             try {
+                                 val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                     geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) { addresses ->
+                                         if (addresses.isNotEmpty()) {
+                                             val address = addresses[0]
+                                             val addressText = address.getAddressLine(0) ?: ""
+                                             viewModel.onLocationChange(addressText)
+                                         }
+                                     }
+                                 } else {
+                                     @Suppress("DEPRECATION")
+                                     val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+                                     if (!addresses.isNullOrEmpty()) {
+                                         val address = addresses[0]
+                                         val addressText = address.getAddressLine(0) ?: ""
+                                         viewModel.onLocationChange(addressText)
+                                     }
+                                 }
+                             } catch (e: Exception) {
+                                 // Ignore errors
+                             }
+                         }
+                     ) {
+                         if (markerPosition != null) {
+                             com.google.maps.android.compose.Marker(
+                                 state = com.google.maps.android.compose.MarkerState(position = markerPosition!!)
+                             )
+                         }
+                     }
+                 }
+            }
 
             SectionCard(
                 title = "Remuneração",
