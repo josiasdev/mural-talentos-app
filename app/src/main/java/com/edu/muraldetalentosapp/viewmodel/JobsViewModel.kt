@@ -164,6 +164,16 @@ class JobsViewModel : ViewModel() {
         setupRealtimeListeners()
     }
 
+    fun closeJob(jobId: String) {
+        viewModelScope.launch {
+            try {
+                jobRepository.closeJob(jobId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         authListener?.let { auth.removeAuthStateListener(it) }

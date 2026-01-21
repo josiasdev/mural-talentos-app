@@ -98,7 +98,9 @@ class JobPostingRepository {
         }
     }
 
-    suspend fun deleteJobPosting(jobId: String) {
-        jobsCollection.document(jobId).delete().await()
+    suspend fun closeJob(jobId: String) {
+        jobsCollection.document(jobId)
+            .update("isActive", false)
+            .await()
     }
 }
