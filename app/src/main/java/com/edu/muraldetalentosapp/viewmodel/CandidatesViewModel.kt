@@ -2,7 +2,6 @@ package com.edu.muraldetalentosapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.edu.muraldetalentosapp.data.model.ApplicationStatus
 import com.edu.muraldetalentosapp.data.repository.CandidatesRepository
 import com.edu.muraldetalentosapp.ui.model.CandidateUiModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,15 +30,12 @@ class CandidatesViewModel(
         viewModelScope.launch {
             _uiState.value = CandidatesUiState.Loading
             try {
-                val list = repository.getCandidatesForJob(jobId)
-
-                val total = list.size
-                val pending = list.count { it.status == ApplicationStatus.PENDING }
+                val result = repository.getCandidatesForJob(jobId)
 
                 _uiState.value = CandidatesUiState.Success(
-                    candidates = list,
-                    totalCount = total,
-                    pendingCount = pending
+                    candidates = result.candidates,
+                    totalCount = result.totalCount,
+                    pendingCount = result.pendingCount
                 )
             } catch (e: Exception) {
                 _uiState.value = CandidatesUiState.Error("Erro ao carregar candidatos: ${e.message}")

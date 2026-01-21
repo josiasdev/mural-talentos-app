@@ -5,10 +5,18 @@ import com.edu.muraldetalentosapp.data.model.User
 import com.edu.muraldetalentosapp.ui.model.CandidateUiModel
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import com.edu.muraldetalentosapp.data.model.ApplicationStatus
+
+// Resultado com lista de candidatos e metadados
+data class CandidatesResult(
+    val candidates: List<CandidateUiModel>,
+    val totalCount: Int,
+    val pendingCount: Int
+)
 
 class CandidatesRepository(private val db: FirebaseFirestore) {
 
-    suspend fun getCandidatesForJob(jobId: String): List<CandidateUiModel> {
+    suspend fun getCandidatesForJob(jobId: String): CandidatesResult {
         val applicationsSnapshot = db.collection("applications")
             .whereEqualTo("jobId", jobId)
             .get()
@@ -44,7 +52,15 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
                 e.printStackTrace()
             }
         }
-        return candidatesList
+
+        val total = candidatesList.size
+        val pending = candidatesList.count { it.status == ApplicationStatus.PENDING }
+
+        return CandidatesResult(
+            candidates = candidatesList,
+            totalCount = total,
+            pendingCount = pending
+        )
     }
 
     suspend fun updateStatus(applicationId: String, newStatus: String) {
