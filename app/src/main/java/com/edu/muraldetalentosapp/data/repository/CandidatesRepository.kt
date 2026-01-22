@@ -6,6 +6,7 @@ import com.edu.muraldetalentosapp.ui.model.CandidateUiModel
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import com.edu.muraldetalentosapp.data.model.ApplicationStatus
+import com.edu.muraldetalentosapp.data.model.Notification
 
 // Resultado com lista de candidatos e metadados
 data class CandidatesResult(
@@ -14,7 +15,9 @@ data class CandidatesResult(
     val pendingCount: Int
 )
 
-class CandidatesRepository(private val db: FirebaseFirestore) {
+class CandidatesRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
+
+    private val notificationRepository = NotificationRepository()
 
     suspend fun getCandidatesForJob(jobId: String): CandidatesResult {
         val applicationsSnapshot = db.collection("applications")
@@ -81,10 +84,24 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
         )
     }
 
-    suspend fun updateStatus(applicationId: String, newStatus: String) {
+    suspend fun updateStatus(
+        applicationId: String,
+        newStatus: String,
+        candidateId: String,
+        jobTitle: String
+    ) {
         db.collection("applications")
             .document(applicationId)
             .update("status", newStatus)
             .await()
+
+        val notification = Notification(
+            recipientId = candidateId,
+            title = "Status Atualizado: $jobTitle",
+            message = "Sua candidatura mudou para: $newStatus. Verifique seu progresso.",
+            jobId = applicationId
+        )
+
+        notificationRepository.createNotification(notification)
     }
 }
