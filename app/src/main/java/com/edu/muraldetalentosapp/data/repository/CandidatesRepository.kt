@@ -26,7 +26,7 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
         val applications = applicationsSnapshot.documents.mapNotNull { doc ->
             try {
                 doc.toObject(Application::class.java)?.copy(id = doc.id)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }
@@ -63,8 +63,7 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
                         )
                     )
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (_: Exception) {
             }
         }
 
@@ -86,5 +85,9 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
             .document(applicationId)
             .update("status", newStatus)
             .await()
+    }
+
+    suspend fun rejectApplication(applicationId: String) {
+        updateStatus(applicationId, ApplicationStatus.REJECTED.name)
     }
 }

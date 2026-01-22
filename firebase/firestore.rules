@@ -1,0 +1,51 @@
+// Debug (temporary): permissive rules - only use for quick debugging, DO NOT deploy to production
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /{document=**} {
+//       allow read, write: if true;
+//     }
+//   }
+// }
+
+// Recommended secure rules for your app (adjust fields names if different):
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users: cada usuário pode criar/atualizar seu próprio documento; leitura pública
+    match /users/{userId} {
+      allow read: if true; // ou: if request.auth != null
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // jobs: leitura pública; criação/atualização/exclusão apenas pela empresa dona (companyId == auth.uid)
+    match /jobs/{jobId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+                    && request.resource.data.companyId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && resource.data.companyId == request.auth.uid;
+    }
+
+    // applications: candidatos podem criar aplicações apenas para eles; leitura para candidato e empresa dona da vaga
+    match /applications/{appId} {
+      allow create: if request.auth != null
+                    && request.resource.data.candidateId == request.auth.uid;
+
+      allow read: if request.auth != null && (
+          // candidato vê suas candidaturas
+          resource.data.candidateId == request.auth.uid
+          ||
+          // empresa vê candidaturas para suas vagas
+          get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.companyId == request.auth.uid
+      );
+
+      // atualização de status (ex: ANALYZED) pode ser feita apenas pela empresa dona do job
+      allow update: if request.auth != null &&
+                    get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.companyId == request.auth.uid;
+      allow delete: if false;
+    }
+  }
+}

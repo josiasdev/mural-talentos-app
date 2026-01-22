@@ -25,8 +25,10 @@ class CandidatesViewModel(
 
     private val _uiState = MutableStateFlow<CandidatesUiState>(CandidatesUiState.Loading)
     val uiState: StateFlow<CandidatesUiState> = _uiState.asStateFlow()
+    private var currentJobId: String? = null
 
     fun loadCandidates(jobId: String) {
+        currentJobId = jobId
         viewModelScope.launch {
             _uiState.value = CandidatesUiState.Loading
             try {
@@ -39,6 +41,19 @@ class CandidatesViewModel(
                 )
             } catch (e: Exception) {
                 _uiState.value = CandidatesUiState.Error("Erro ao carregar candidatos: ${e.message}")
+            }
+        }
+    }
+
+    fun rejectCandidate(applicationId: String) {
+        val jobId = currentJobId ?: return
+        viewModelScope.launch {
+            try {
+                repository.rejectApplication(applicationId)
+                // reload candidates for the same job
+                loadCandidates(jobId)
+            } catch (e: Exception) {
+                _uiState.value = CandidatesUiState.Error("Erro ao rejeitar candidato: ${e.message}")
             }
         }
     }

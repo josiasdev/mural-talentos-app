@@ -1,5 +1,6 @@
 package com.edu.muraldetalentosapp.data.repository
 
+import android.util.Log
 import com.edu.muraldetalentosapp.data.model.JobPosting
 import com.google.firebase.firestore.FirebaseFirestore
 import com.edu.muraldetalentosapp.data.supabase.SupabaseManager
@@ -22,6 +23,7 @@ class JobPostingRepository {
 
         return storageBucket.publicUrl(fileName)
     }
+
     suspend fun saveJobPosting(job: JobPosting): String {
         val jobMap = mapOf(
             "title" to job.title,
@@ -52,12 +54,57 @@ class JobPostingRepository {
         }
     }
 
+    suspend fun publishJob(
+        title: String,
+        description: String,
+        location: String,
+        contractType: String,
+        salary: String,
+        isSalaryNegotiable: Boolean,
+        imageUrl: String?,
+        latitude: Double?,
+        longitude: Double?,
+        companyId: String,
+        companyName: String
+    ): String {
+        val currentTimestamp = System.currentTimeMillis()
+        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
+        val expirationTimestamp = currentTimestamp + thirtyDaysInMillis
+        val publishedAt = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(currentTimestamp))
+
+        val job = JobPosting(
+            id = "",
+            title = title,
+            company = companyName,
+            companyId = companyId,
+            description = description,
+            location = location,
+            type = contractType,
+            contractType = contractType,
+            salaryRange = if (isSalaryNegotiable) "A combinar" else salary,
+            isSalaryNegotiable = isSalaryNegotiable,
+            publishedAt = publishedAt,
+            datePosted = currentTimestamp,
+            expirationDate = expirationTimestamp,
+            isApplied = false,
+            imageUrl = imageUrl,
+            latitude = latitude ?: -4.9685,
+            longitude = longitude ?: -39.0150,
+            isActive = true
+        )
+
+        return saveJobPosting(job)
+    }
+
     fun listenToActiveJobs(): Flow<List<JobPosting>> = callbackFlow {
         val subscription = jobsCollection
             .whereEqualTo("isActive", true)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    // Log the permission or other error but keep the flow alive for retries
+                    Log.e("JobRepo", "listenToActiveJobs error: ${error.message}")
+                    // send an empty list so UI can react but do not close the flow to avoid bubbling the exception
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val jobs = snapshot?.documents?.mapNotNull { doc ->
@@ -79,6 +126,7 @@ class JobPostingRepository {
                 doc.toObject(JobPosting::class.java)?.copy(id = doc.id)
             }
         } catch (e: Exception) {
+            android.util.Log.e("JobRepo", "getAllActiveJobPostings failed", e)
             emptyList()
         }
     }
@@ -94,6 +142,7 @@ class JobPostingRepository {
                 doc.toObject(JobPosting::class.java)?.copy(id = doc.id)
             }
         } catch (e: Exception) {
+            android.util.Log.e("JobRepo", "getJobPostingsByCompany failed for companyId=$companyId", e)
             emptyList()
         }
     }

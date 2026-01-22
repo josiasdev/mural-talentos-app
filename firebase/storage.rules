@@ -1,0 +1,26 @@
+// Debug (temporary): permissive rules - only use for quick debugging, DO NOT deploy to production
+// service firebase.storage {
+//   match /b/{bucket}/o {
+//     match /{allPaths=**} {
+//       allow read, write: if true;
+//     }
+//   }
+// }
+
+// Recommended secure rules for Firebase Storage (if you use Firebase Storage):
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // resumes por usuário
+    match /resumes/{userId}/{file} {
+      allow read: if true; // ou restrinja
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // job-images
+    match /job-images/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null; // ajuste se quiser restringir por companyId
+    }
+  }
+}

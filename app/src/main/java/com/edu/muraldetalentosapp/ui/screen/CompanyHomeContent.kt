@@ -32,6 +32,7 @@ import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import coil.compose.AsyncImage
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun CompanyDashboard(
@@ -43,6 +44,13 @@ fun CompanyDashboard(
     val allJobs by viewModel.jobs.collectAsState()
     val applicationCounts by viewModel.jobApplicationCounts.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    // Force a one-shot fetch when entering the screen to ensure company jobs appear
+    LaunchedEffect(currentUserId) {
+        if (!currentUserId.isNullOrBlank()) {
+            viewModel.fetchCompanyJobs()
+        }
+    }
 
     val myJobs = allJobs.filter { it.companyId == currentUserId }
     

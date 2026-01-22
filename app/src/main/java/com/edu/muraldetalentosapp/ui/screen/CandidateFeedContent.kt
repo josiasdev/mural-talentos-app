@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edu.muraldetalentosapp.ui.components.JobCard
-import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
@@ -26,8 +25,7 @@ import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CandidateFeedContent(
-    viewModel: JobsViewModel,
-    onNavigateToMap: () -> Unit
+    viewModel: JobsViewModel
 ) {
     val jobs by viewModel.jobs.collectAsState()
 
@@ -216,11 +214,15 @@ fun CandidateFeedContent(
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(displayedJobs) { job ->
+                val statusMap by viewModel.userApplicationStatuses.collectAsState()
+                val appStatus = statusMap[job.id]
+
                 JobCard(
                     job = job,
                     onClick = {
                         viewModel.applyToJob(job.id)
-                    }
+                    },
+                    applicationStatus = appStatus
                 )
             }
 

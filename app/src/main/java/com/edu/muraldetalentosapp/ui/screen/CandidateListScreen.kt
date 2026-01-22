@@ -79,10 +79,12 @@ fun CandidateListScreen(
                     )
                 }
                 is CandidatesUiState.Success -> {
+                    val vm: CandidatesViewModel = koinViewModel()
                     CandidateContent(
                         candidates = state.candidates,
                         totalCount = state.totalCount,
-                        pendingCount = state.pendingCount
+                        pendingCount = state.pendingCount,
+                        onReject = { applicationId -> vm.rejectCandidate(applicationId) }
                     )
                 }
             }
@@ -94,7 +96,8 @@ fun CandidateListScreen(
 fun CandidateContent(
     candidates: List<CandidateUiModel>,
     totalCount: Int,
-    pendingCount: Int
+    pendingCount: Int,
+    onReject: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -121,20 +124,20 @@ fun CandidateContent(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                items(candidates) { candidate ->
-                    RealCandidateCard(candidate)
-                }
-            }
-        }
-    }
-}
+                 modifier = Modifier.fillMaxSize(),
+                 verticalArrangement = Arrangement.spacedBy(16.dp),
+                 contentPadding = PaddingValues(bottom = 16.dp)
+             ) {
+                 items(candidates) { candidate ->
+                    RealCandidateCard(candidate, onReject)
+                 }
+             }
+         }
+     }
+ }
 
 @Composable
-fun RealCandidateCard(candidate: CandidateUiModel) {
+fun RealCandidateCard(candidate: CandidateUiModel, onReject: (String) -> Unit) {
     val context = LocalContext.current
     val dateString = remember(candidate.appliedAt) {
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(candidate.appliedAt))
@@ -144,6 +147,7 @@ fun RealCandidateCard(candidate: CandidateUiModel) {
         ApplicationStatus.PENDING -> Triple("Pendente", Color(0xFFB45309), Color(0xFFFEF3C7)) // Laranja/Amarelo
         ApplicationStatus.ANALYZED -> Triple("Analisado", Color(0xFF1D4ED8), Color(0xFFDBEAFE)) // Azul
         ApplicationStatus.CONTACTED -> Triple("Contatado", Color(0xFF15803D), Color(0xFFDCFCE7)) // Verde
+        ApplicationStatus.REJECTED -> Triple("Rejeitado", Color(0xFF6B7280), Color(0xFFF3F4F6)) // Cinza
     }
 
     Card(
@@ -201,8 +205,27 @@ fun RealCandidateCard(candidate: CandidateUiModel) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                var showConfirm by remember { mutableStateOf(false) }
+
+                if (showConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showConfirm = false },
+                        title = { Text("Rejeitar candidatura") },
+                        text = { Text("Deseja realmente rejeitar a candidatura de ${candidate.name}?") },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                onReject(candidate.applicationId)
+                                showConfirm = false
+                            }) { Text("Rejeitar", color = MaterialTheme.colorScheme.error) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showConfirm = false }) { Text("Cancelar") }
+                        }
+                    )
+                }
+
                 OutlinedButton(
-                    onClick = {  },
+                    onClick = { showConfirm = true },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp),
@@ -210,7 +233,7 @@ fun RealCandidateCard(candidate: CandidateUiModel) {
                 ) {
                     Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ver Dados", fontSize = 12.sp)
+                    Text("Rejeitar", fontSize = 12.sp)
                 }
 
                 Button(

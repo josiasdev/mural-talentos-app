@@ -11,13 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.edu.muraldetalentosapp.data.model.JobPosting
 
 @Composable
-fun JobCard(job: JobPosting, onClick: () -> Unit) {
+fun JobCard(job: JobPosting, onClick: () -> Unit, applicationStatus: String? = null) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -72,13 +73,26 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
 
             Spacer(Modifier.height(12.dp))
 
-            Button(
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                enabled = !job.isApplied
-            ) {
-                Text(if (job.isApplied) "Candidatado" else "Candidatar-se")
+            // If the user's application for this job is rejected, show disabled red-light button
+            if (applicationStatus == "REJECTED") {
+                Button(
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = false,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE2E2), disabledContainerColor = Color(0xFFFEE2E2), contentColor = Color(0xFFB91C1C))
+                ) {
+                    Text("Rejeitado")
+                }
+            } else {
+                Button(
+                    onClick = onClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !job.isApplied
+                ) {
+                    Text(if (job.isApplied) "Candidatado" else "Candidatar-se")
+                }
             }
         }
     }

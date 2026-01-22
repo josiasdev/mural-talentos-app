@@ -3,7 +3,7 @@ package com.edu.muraldetalentosapp.data.model
 import com.google.firebase.firestore.DocumentId
 
 enum class ApplicationStatus {
-    PENDING, ANALYZED, CONTACTED
+    PENDING, ANALYZED, CONTACTED, REJECTED
 }
 
 data class Application(

@@ -9,8 +9,7 @@ import com.edu.muraldetalentosapp.data.repository.ApplicationRepository
 import com.edu.muraldetalentosapp.data.repository.JobPostingRepository
 import com.edu.muraldetalentosapp.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,9 +17,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.flow.asStateFlow
 
 data class PostJobUiState(
@@ -46,13 +42,15 @@ class JobsViewModel : ViewModel() {
     private val jobRepository = JobPostingRepository()
     private val applicationRepository = ApplicationRepository()
     private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
     private val userRepository = UserRepository()
 
+    // Raw jobs provided by repository
     private val _rawJobs = MutableStateFlow<List<JobPosting>>(emptyList())
-    
+
+    // Applied ids from repository (realtime)
     private val _dbAppliedIds = MutableStateFlow<Set<String>>(emptySet())
-    
+
+    // Local optimistic cache
     private val _optimisticAppliedIds = MutableStateFlow<Set<String>>(emptySet())
 
     val jobs: StateFlow<List<JobPosting>> = combine(
@@ -70,106 +68,160 @@ class JobsViewModel : ViewModel() {
     private val _jobApplicationCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
     val jobApplicationCounts: StateFlow<Map<String, Int>> = _jobApplicationCounts.asStateFlow()
 
+    private val _userApplicationStatuses = MutableStateFlow<Map<String, String>>(emptyMap())
+    val userApplicationStatuses: StateFlow<Map<String, String>> = _userApplicationStatuses.asStateFlow()
+
     private val _applyAlert = MutableStateFlow<String?>(null)
     val applyAlert: StateFlow<String?> = _applyAlert.asStateFlow()
 
     private val _isUploadingImage = MutableStateFlow(false)
     val isUploadingImage: StateFlow<Boolean> = _isUploadingImage.asStateFlow()
 
-    private var jobsListener: ListenerRegistration? = null
-    private var appsListener: ListenerRegistration? = null
-    private var countsListener: ListenerRegistration? = null
+    // Jobs to manage collectors so we can cancel/restart them when auth changes
+    private var jobsCollectorJob: Job? = null
+    private var appliedIdsCollectorJob: Job? = null
+    private var countsCollectorJob: Job? = null
     private var authListener: FirebaseAuth.AuthStateListener? = null
 
     init {
-        authListener = FirebaseAuth.AuthStateListener { 
-            setupRealtimeListeners() 
+        // Registra listener de autenticação e inicia listeners conforme o usuário
+        authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val uid = firebaseAuth.currentUser?.uid
+            startListeners(uid)
         }
-        auth.addAuthStateListener(authListener!!)
+        authListener?.let { auth.addAuthStateListener(it) }
+
+        // Inicia imediatamente com o usuário atual (se estiver logado)
+        startListeners(auth.currentUser?.uid)
     }
 
-    private fun setupRealtimeListeners() {
-        val currentUser = auth.currentUser
-        
-        jobsListener?.remove()
-        appsListener?.remove()
-        countsListener?.remove()
+    private fun startListeners(uid: String?) {
+        // Cancela coletores anteriores
+        jobsCollectorJob?.cancel()
+        appliedIdsCollectorJob?.cancel()
+        countsCollectorJob?.cancel()
 
-        jobsListener = db.collection("jobs")
-            .whereEqualTo("isActive", true)
-            .addSnapshotListener { snapshot, _ ->
-                _rawJobs.value = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(JobPosting::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
+        // Sempre iniciar listener de vagas ativas (disponível para todos)
+        jobsCollectorJob = viewModelScope.launch {
+            Log.d("JobsViewModel", "Starting jobs listener (uid=$uid)")
+            jobRepository.listenToActiveJobs().collect { list ->
+                Log.d("JobsViewModel", "Received ${list.size} jobs from repository")
+                _rawJobs.value = list
             }
-
-        if (currentUser != null) {
-            appsListener = db.collection("applications")
-                .whereEqualTo("candidateId", currentUser.uid)
-                .addSnapshotListener { snapshot, _ ->
-                    val ids = snapshot?.documents?.mapNotNull { it.getString("jobId") }?.toSet() ?: emptySet()
-                    _dbAppliedIds.value = ids
-                }
-        } else {
-            _dbAppliedIds.value = emptySet()
-            _optimisticAppliedIds.value = emptySet()
         }
 
-        countsListener = db.collection("applications")
-            .addSnapshotListener { snapshot, _ ->
-                val counts = snapshot?.documents?.groupBy { it.getString("jobId") ?: "" }
-                    ?.mapValues { it.value.size } ?: emptyMap()
+        // One-shot: tenta buscar as vagas que a empresa publicou (útil se listener não retornar por regras ou demora)
+        if (uid != null) {
+            viewModelScope.launch {
+                try {
+                    val myJobs = jobRepository.getJobPostingsByCompany(uid)
+                    if (myJobs.isNotEmpty()) {
+                        Log.d("JobsViewModel", "Fetched ${myJobs.size} company jobs via direct query for uid=$uid")
+                        // Mescla com jobs atuais, preservando unicidade
+                        val current = _rawJobs.value
+                        val merged = (current + myJobs).distinctBy { it.id }
+                        _rawJobs.value = merged
+                    } else {
+                        Log.d("JobsViewModel", "No company jobs found via direct query for uid=$uid")
+                    }
+                } catch (e: Exception) {
+                    Log.e("JobsViewModel", "Error fetching company jobs directly", e)
+                }
+            }
+        }
+
+        // Se não ha usuario autenticado, zera apenas os estados dependentes de uid e não inicia esses listeners
+        if (uid == null) {
+            _dbAppliedIds.value = emptySet()
+            _jobApplicationCounts.value = emptyMap()
+            _userApplicationStatuses.value = emptyMap()
+            return
+        }
+
+        // Listener de candidaturas do usuário
+        appliedIdsCollectorJob = viewModelScope.launch {
+            Log.d("JobsViewModel", "Starting appliedIds listener for uid=$uid")
+            applicationRepository.listenToUserAppliedJobIds(uid).collect { ids ->
+                Log.d("JobsViewModel", "Received ${ids.size} applied ids")
+                _dbAppliedIds.value = ids
+            }
+        }
+
+        // Listener de contagens de candidaturas
+        countsCollectorJob = viewModelScope.launch {
+            Log.d("JobsViewModel", "Starting application counts listener")
+            applicationRepository.listenToApplicationCounts().collect { counts ->
+                Log.d("JobsViewModel", "Received ${counts.size} job counts")
                 _jobApplicationCounts.value = counts
             }
+        }
+
+        // Listener de status das aplicações do usuário
+        viewModelScope.launch {
+            applicationRepository.listenToUserApplicationStatuses(uid).collect { map ->
+                _userApplicationStatuses.value = map
+            }
+        }
     }
 
     fun applyToJob(jobId: String) {
         val currentUser = auth.currentUser ?: return
 
-        // Verifica se o usuário tem cadastro completo antes de aplicar
         viewModelScope.launch {
-            val userProfile = try {
-                userRepository.getUserProfile(currentUser.uid)
+            // Delega checagem e operação ao repositório
+            val application = Application(
+                jobId = jobId,
+                candidateId = currentUser.uid
+            )
+
+            val applied = try {
+                applicationRepository.tryApplyToJob(application, userRepository)
             } catch (e: Exception) {
-                Log.e("JobsViewModel", "Erro ao buscar perfil do usuário", e)
-                null
+                Log.e("JobsViewModel", "Erro ao aplicar à vaga via repositório", e)
+                false
             }
 
-            if (userProfile?.isComplete != true) {
-                // Usuário incompleto: exibe alerta direcionando para completar o perfil
+            if (!applied) {
                 setApplyAlert("Complete seu cadastro para se candidatar à vaga.")
                 Log.d("JobsViewModel", "Usuário não completo - aplicação bloqueada para vaga $jobId")
                 return@launch
             }
 
-            // Usuário completo: prossegue com a aplicação (cache otimista)
+            // Se chegou aqui, repositório aplicou com sucesso
             _optimisticAppliedIds.update { it + jobId }
-            Log.d("JobsViewModel", "Adicionado ao cache otimista: $jobId")
-
-            try {
-                val application = Application(
-                    jobId = jobId,
-                    candidateId = currentUser.uid
-                )
-                applicationRepository.applyToJob(application)
-                Log.d("JobsViewModel", "Sucesso no Firestore para $jobId")
-            } catch (e: Exception) {
-                Log.e("JobsViewModel", "Erro ao salvar aplicação no Firestore, removendo do cache otimista", e)
-                _optimisticAppliedIds.update { it - jobId }
-            }
+            Log.d("JobsViewModel", "Aplicação enviada com sucesso para $jobId")
         }
     }
 
     fun fetchJobs() {
-        setupRealtimeListeners()
+        // Método de conveniência: os listeners já estão conectados no init
+    }
+
+    // Public method to force fetching company jobs (one-shot) and merge into current jobs
+    fun fetchCompanyJobs() {
+        val uid = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                val myJobs = jobRepository.getJobPostingsByCompany(uid)
+                Log.d("JobsViewModel", "fetchCompanyJobs: got ${myJobs.size} jobs for uid=$uid")
+                if (myJobs.isNotEmpty()) {
+                    val current = _rawJobs.value
+                    val merged = (current + myJobs).distinctBy { it.id }
+                    _rawJobs.value = merged
+                }
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "fetchCompanyJobs failed", e)
+            }
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
+        // Cancela collectors e remove auth listener
+        jobsCollectorJob?.cancel()
+        appliedIdsCollectorJob?.cancel()
+        countsCollectorJob?.cancel()
         authListener?.let { auth.removeAuthStateListener(it) }
-        jobsListener?.remove()
-        appsListener?.remove()
-        countsListener?.remove()
     }
 
     fun toggleApplication(jobId: String) {
@@ -177,7 +229,6 @@ class JobsViewModel : ViewModel() {
     }
 
     fun closeJob(jobId: String) {
-        // Fecha a vaga no repositório e atualiza um estado de loading enquanto opera
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
@@ -229,34 +280,24 @@ class JobsViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            
-            val currentTimestamp = System.currentTimeMillis()
-            val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-            val expirationTimestamp = currentTimestamp + thirtyDaysInMillis
-            val formattedDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(currentTimestamp))
-
-            val newJob = JobPosting(
-                title = state.title,
-                company = currentUser.displayName ?: "Empresa",
-                companyId = currentUser.uid,
-                description = state.description,
-                location = state.location,
-                type = state.contractType,
-                contractType = state.contractType,
-                salaryRange = if (state.isSalaryNegotiable) "A combinar" else state.salary,
-                isSalaryNegotiable = state.isSalaryNegotiable,
-                publishedAt = formattedDate,
-                datePosted = currentTimestamp,
-                expirationDate = expirationTimestamp,
-                isApplied = false,
-                imageUrl = state.imageUrl.ifBlank { null },
-                latitude = state.latitude ?: -4.9685, 
-                longitude = state.longitude ?: -39.0150
-            )
 
             try {
-                jobRepository.saveJobPosting(newJob)
-                _uiState.update { PostJobUiState(isPostedSuccess = true) }
+                // Delegamos a construção do JobPosting e persistência ao repository
+                jobRepository.publishJob(
+                    title = state.title,
+                    description = state.description,
+                    location = state.location,
+                    contractType = state.contractType,
+                    salary = state.salary,
+                    isSalaryNegotiable = state.isSalaryNegotiable,
+                    imageUrl = state.imageUrl.ifBlank { null },
+                    latitude = state.latitude,
+                    longitude = state.longitude,
+                    companyId = currentUser.uid,
+                    companyName = currentUser.displayName ?: "Empresa"
+                )
+
+                _uiState.update { it.copy(isPostedSuccess = true, isLoading = false) }
             } catch (e: Exception) {
                 Log.e("JobsViewModel", "Erro ao publicar vaga", e)
                 _uiState.update { it.copy(isLoading = false) }
@@ -275,7 +316,6 @@ class JobsViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 Log.e("JobsViewModel", "Erro ao enviar imagem da vaga", e)
-                // Trate o erro conforme necessário
             } finally {
                 _isUploadingImage.value = false
             }
