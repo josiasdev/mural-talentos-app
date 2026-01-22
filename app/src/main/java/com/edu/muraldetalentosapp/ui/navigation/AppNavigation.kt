@@ -1,5 +1,6 @@
 package com.edu.muraldetalentosapp.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -7,13 +8,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.edu.muraldetalentosapp.ui.LoginScreen
-import com.edu.muraldetalentosapp.ui.RegisterScreen
-import com.edu.muraldetalentosapp.ui.components.AccountType
+import com.edu.muraldetalentosapp.ui.screen.LoginScreen
+import com.edu.muraldetalentosapp.ui.screen.RegisterScreen
 import com.edu.muraldetalentosapp.ui.screen.HomeScreen
 import com.edu.muraldetalentosapp.ui.screen.JobMapScreen
 import com.edu.muraldetalentosapp.ui.screen.PostJobScreen
 import com.edu.muraldetalentosapp.ui.screen.ProfileScreen
+import com.edu.muraldetalentosapp.ui.screen.SearchCandidatesScreen
 import com.edu.muraldetalentosapp.viewmodel.AuthViewModel
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 
@@ -24,15 +25,21 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Map : Screen("map")
     object PostJob: Screen("post_job")
+    object SearchCandidates: Screen("search_candidates")
+    object CandidateList : Screen("candidate_list/{jobId}/{jobTitle}") {
+        fun createRoute(jobId: String, jobTitle: String) = "candidate_list/$jobId/${Uri.encode(jobTitle)}"
+    }
 }
 
 @Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
+fun AppNavigation(
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit
+) {
 
+    val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val jobsViewModel: JobsViewModel = viewModel()
-
     val userType by authViewModel.userType.collectAsState()
 
     NavHost(navController = navController, startDestination = Screen.Login.route) {
@@ -56,7 +63,11 @@ fun AppNavigation() {
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
-                    navController.popBackStack()
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) {
+                            inclusive = true
+                        }
+                    }
                 },
                 onNavigateBack = {
                     navController.popBackStack()
@@ -82,12 +93,19 @@ fun AppNavigation() {
                     }
                 },
                 viewModel = jobsViewModel,
-
                 onNavigateToPostJob = {
                     navController.navigate(Screen.PostJob.route)
                 },
+                onNavigateToSearchCandidates = {
+                    navController.navigate(Screen.SearchCandidates.route)
+                },
+                onNavigateToCandidates = { jobId, jobTitle ->
+                    navController.navigate(Screen.CandidateList.createRoute(jobId, jobTitle))
+                },
 
-                userType = userType
+                userType = userType,
+                isDarkTheme = isDarkTheme,
+                onThemeToggle = onThemeToggle
             )
         }
 
@@ -113,6 +131,29 @@ fun AppNavigation() {
         composable(Screen.PostJob.route) {
             PostJobScreen(
                 viewModel = jobsViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.SearchCandidates.route) {
+            SearchCandidatesScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.CandidateList.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("jobId") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("jobTitle") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+            val rawTitle = backStackEntry.arguments?.getString("jobTitle") ?: "Candidatos"
+            val jobTitle = try { Uri.decode(rawTitle) } catch (_: Exception) { rawTitle }
+
+            com.edu.muraldetalentosapp.ui.screen.CandidateListScreen(
+                jobId = jobId,
+                jobTitle = jobTitle,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edu.muraldetalentosapp.ui.components.JobCard
-import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
 import com.edu.muraldetalentosapp.ui.theme.BluePrimary
 import com.edu.muraldetalentosapp.ui.theme.TextGray
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
@@ -26,11 +25,8 @@ import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CandidateFeedContent(
-    viewModel: JobsViewModel,
-    onNavigateToMap: () -> Unit
+    viewModel: JobsViewModel
 ) {
-
-
     val jobs by viewModel.jobs.collectAsState()
 
     var search by remember { mutableStateOf("") }
@@ -48,7 +44,7 @@ fun CandidateFeedContent(
 
     fun parseSalary(salary: String?): Float? {
         if (salary == null || salary == "A combinar") return null
-        val salaryString = salary.split("-")[0] // Pega o primeiro valor se for faixa
+        val salaryString = salary.split("-")[0]
         val cleanedSalary = salaryString.replace(Regex("[^0-9,]"), "")
         return cleanedSalary.replace(',', '.').toFloatOrNull()
     }
@@ -73,8 +69,8 @@ fun CandidateFeedContent(
         }
     }
 
-    val availableJobs = filteredJobs.filter { it.isApplied != true } // Trata null como false
-    val appliedJobs = filteredJobs.filter { it.isApplied == true }
+    val availableJobs = filteredJobs.filter { !it.isApplied }
+    val appliedJobs = filteredJobs.filter { it.isApplied }
 
     val tabs = listOf("Todas (${availableJobs.size})", "Candidaturas (${appliedJobs.size})")
 
@@ -89,7 +85,6 @@ fun CandidateFeedContent(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 16.dp)
@@ -98,16 +93,18 @@ fun CandidateFeedContent(
                 value = search,
                 onValueChange = { search = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Buscar vagas...", color = TextGray) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextGray) },
+                placeholder = { Text("Buscar vagas...", color = MaterialTheme.colorScheme.onSurfaceVariant ) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(8.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = BackgroundGray,
-                    unfocusedContainerColor = BackgroundGray,
-                    disabledContainerColor = BackgroundGray,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
+                    disabledIndicatorColor = Color.Transparent,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 ),
                 singleLine = true
             )
@@ -115,15 +112,14 @@ fun CandidateFeedContent(
                 Icon(
                     imageVector = Icons.Default.FilterList,
                     contentDescription = "Filtrar",
-                    tint = if (isFilterExpanded) BluePrimary else TextGray
+                    tint = if (isFilterExpanded) BluePrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
         AnimatedVisibility(visible = isFilterExpanded) {
             Column(Modifier.padding(vertical = 16.dp)) {
-
-                Text("Localização", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Localização", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onBackground)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     locations.forEach { location ->
                         FilterChip(
@@ -146,7 +142,7 @@ fun CandidateFeedContent(
 
                 Spacer(Modifier.height(16.dp))
 
-                Text("Tipo de Vaga", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Tipo de Vaga", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onBackground)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     jobTypes.forEach { type ->
                         FilterChip(
@@ -169,7 +165,7 @@ fun CandidateFeedContent(
 
                 Spacer(Modifier.height(16.dp))
 
-                Text("Faixa Salarial", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Faixa Salarial", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onBackground)
                 RangeSlider(
                     value = selectedSalaryRange,
                     onValueChange = { selectedSalaryRange = it },
@@ -181,8 +177,8 @@ fun CandidateFeedContent(
                     )
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("R$ ${selectedSalaryRange.start.toInt()}", fontSize = 12.sp, color = TextGray)
-                    Text("R$ ${selectedSalaryRange.endInclusive.toInt()}", fontSize = 12.sp, color = TextGray)
+                    Text("R$ ${selectedSalaryRange.start.toInt()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("R$ ${selectedSalaryRange.endInclusive.toInt()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -191,7 +187,7 @@ fun CandidateFeedContent(
 
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = BluePrimary,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
@@ -206,7 +202,7 @@ fun CandidateFeedContent(
                     onClick = { selectedTab = index },
                     text = { Text(text, fontWeight = if(index == selectedTab) FontWeight.Bold else FontWeight.Normal) },
                     selectedContentColor = BluePrimary,
-                    unselectedContentColor = TextGray
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -218,12 +214,15 @@ fun CandidateFeedContent(
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(displayedJobs) { job ->
+                val statusMap by viewModel.userApplicationStatuses.collectAsState()
+                val appStatus = statusMap[job.id]
+
                 JobCard(
                     job = job,
                     onClick = {
-                        // Chama a função do ViewModel para aplicar/desaplicar
-                        viewModel.toggleApplication(job.title)
-                    }
+                        viewModel.applyToJob(job.id)
+                    },
+                    applicationStatus = appStatus
                 )
             }
 

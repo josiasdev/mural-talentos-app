@@ -1,8 +1,19 @@
+import java.util.Properties
+
+
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.services)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { stream ->
+        localProperties.load(stream)
+    }
 }
 
 android {
@@ -17,6 +28,17 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SUPABASE_URL", localProperties["SUPABASE_URL"] as String? ?: "\"\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", localProperties["SUPABASE_ANON_KEY"] as String? ?: "\"\"")
+
+        val mapsApiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
     }
 
     buildTypes {
@@ -35,15 +57,19 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-    buildFeatures {
-        compose = true
-    }
-}
+            buildFeatures {
+                compose = true
+                buildConfig = true
+            }}
 
 dependencies {
     //noinspection GradleDependency
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Koin
+    implementation("io.insert-koin:koin-android:3.5.3")
+    implementation("io.insert-koin:koin-androidx-compose:3.5.3")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -56,8 +82,11 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
     implementation(libs.androidx.foundation)
-    implementation(libs.osmdroid.android)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.gms.play.services.maps)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -65,4 +94,13 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    
+    // Supabase
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.4.1")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.1")
+    implementation("io.github.jan-tennert.supabase:supabase-kt:2.4.1")
+    
+    // Ktor Engine (Obrigatório para o Supabase no Android)
+    implementation("io.ktor:ktor-client-okhttp:2.3.12")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }

@@ -1,15 +1,23 @@
 package com.edu.muraldetalentosapp.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
-import com.edu.muraldetalentosapp.ui.model.JobPosting
+import androidx.lifecycle.viewModelScope
+import com.edu.muraldetalentosapp.data.model.Application
+import com.edu.muraldetalentosapp.data.model.JobPosting
+import com.edu.muraldetalentosapp.data.repository.ApplicationRepository
+import com.edu.muraldetalentosapp.data.repository.JobPostingRepository
+import com.edu.muraldetalentosapp.data.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asStateFlow
 
 data class PostJobUiState(
     val title: String = "",
@@ -24,27 +32,212 @@ data class PostJobUiState(
     val locationError: Boolean = false,
     val contractError: Boolean = false,
     val salaryError: Boolean = false,
-    val isPostedSuccess: Boolean = false
+    val isPostedSuccess: Boolean = false,
+    val isLoading: Boolean = false,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 class JobsViewModel : ViewModel() {
+    private val jobRepository = JobPostingRepository()
+    private val applicationRepository = ApplicationRepository()
+    private val auth = FirebaseAuth.getInstance()
+    private val userRepository = UserRepository()
 
-    private val _jobs = MutableStateFlow(generateMockJobs())
-    val jobs: StateFlow<List<JobPosting>> = _jobs.asStateFlow()
+    // Raw jobs provided by repository
+    private val _rawJobs = MutableStateFlow<List<JobPosting>>(emptyList())
+
+    // Applied ids from repository (realtime)
+    private val _dbAppliedIds = MutableStateFlow<Set<String>>(emptySet())
+
+    // Local optimistic cache
+    private val _optimisticAppliedIds = MutableStateFlow<Set<String>>(emptySet())
+
+    val jobs: StateFlow<List<JobPosting>> = combine(
+        _rawJobs, _dbAppliedIds, _optimisticAppliedIds
+    ) { rawJobs, dbIds, optimisticIds ->
+        val allAppliedIds = dbIds + optimisticIds
+        rawJobs.map { job ->
+            job.copy(isApplied = allAppliedIds.contains(job.id))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _uiState = MutableStateFlow(PostJobUiState())
     val uiState: StateFlow<PostJobUiState> = _uiState.asStateFlow()
 
-    fun toggleApplication(jobTitle: String) {
-        _jobs.update { currentList ->
-            currentList.map { job ->
-                if (job.title == jobTitle) {
-                    // Tratamento seguro para nulos (isApplied é Boolean?)
-                    val currentStatus = job.isApplied ?: false
-                    job.copy(isApplied = !currentStatus)
-                } else {
-                    job
+    private val _jobApplicationCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val jobApplicationCounts: StateFlow<Map<String, Int>> = _jobApplicationCounts.asStateFlow()
+
+    private val _userApplicationStatuses = MutableStateFlow<Map<String, String>>(emptyMap())
+    val userApplicationStatuses: StateFlow<Map<String, String>> = _userApplicationStatuses.asStateFlow()
+
+    private val _applyAlert = MutableStateFlow<String?>(null)
+    val applyAlert: StateFlow<String?> = _applyAlert.asStateFlow()
+
+    private val _isUploadingImage = MutableStateFlow(false)
+    val isUploadingImage: StateFlow<Boolean> = _isUploadingImage.asStateFlow()
+
+    // Jobs to manage collectors so we can cancel/restart them when auth changes
+    private var jobsCollectorJob: Job? = null
+    private var appliedIdsCollectorJob: Job? = null
+    private var countsCollectorJob: Job? = null
+    private var authListener: FirebaseAuth.AuthStateListener? = null
+
+    init {
+        // Registra listener de autenticação e inicia listeners conforme o usuário
+        authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val uid = firebaseAuth.currentUser?.uid
+            startListeners(uid)
+        }
+        authListener?.let { auth.addAuthStateListener(it) }
+
+        // Inicia imediatamente com o usuário atual (se estiver logado)
+        startListeners(auth.currentUser?.uid)
+    }
+
+    private fun startListeners(uid: String?) {
+        // Cancela coletores anteriores
+        jobsCollectorJob?.cancel()
+        appliedIdsCollectorJob?.cancel()
+        countsCollectorJob?.cancel()
+
+        // Sempre iniciar listener de vagas ativas (disponível para todos)
+        jobsCollectorJob = viewModelScope.launch {
+            Log.d("JobsViewModel", "Starting jobs listener (uid=$uid)")
+            jobRepository.listenToActiveJobs().collect { list ->
+                Log.d("JobsViewModel", "Received ${list.size} jobs from repository")
+                _rawJobs.value = list
+            }
+        }
+
+        // One-shot: tenta buscar as vagas que a empresa publicou (útil se listener não retornar por regras ou demora)
+        if (uid != null) {
+            viewModelScope.launch {
+                try {
+                    val myJobs = jobRepository.getJobPostingsByCompany(uid)
+                    if (myJobs.isNotEmpty()) {
+                        Log.d("JobsViewModel", "Fetched ${myJobs.size} company jobs via direct query for uid=$uid")
+                        // Mescla com jobs atuais, preservando unicidade
+                        val current = _rawJobs.value
+                        val merged = (current + myJobs).distinctBy { it.id }
+                        _rawJobs.value = merged
+                    } else {
+                        Log.d("JobsViewModel", "No company jobs found via direct query for uid=$uid")
+                    }
+                } catch (e: Exception) {
+                    Log.e("JobsViewModel", "Error fetching company jobs directly", e)
                 }
+            }
+        }
+
+        // Se não ha usuario autenticado, zera apenas os estados dependentes de uid e não inicia esses listeners
+        if (uid == null) {
+            _dbAppliedIds.value = emptySet()
+            _jobApplicationCounts.value = emptyMap()
+            _userApplicationStatuses.value = emptyMap()
+            return
+        }
+
+        // Listener de candidaturas do usuário
+        appliedIdsCollectorJob = viewModelScope.launch {
+            Log.d("JobsViewModel", "Starting appliedIds listener for uid=$uid")
+            applicationRepository.listenToUserAppliedJobIds(uid).collect { ids ->
+                Log.d("JobsViewModel", "Received ${ids.size} applied ids")
+                _dbAppliedIds.value = ids
+            }
+        }
+
+        // Listener de contagens de candidaturas
+        countsCollectorJob = viewModelScope.launch {
+            Log.d("JobsViewModel", "Starting application counts listener")
+            applicationRepository.listenToApplicationCounts().collect { counts ->
+                Log.d("JobsViewModel", "Received ${counts.size} job counts")
+                _jobApplicationCounts.value = counts
+            }
+        }
+
+        // Listener de status das aplicações do usuário
+        viewModelScope.launch {
+            applicationRepository.listenToUserApplicationStatuses(uid).collect { map ->
+                _userApplicationStatuses.value = map
+            }
+        }
+    }
+
+    fun applyToJob(jobId: String) {
+        val currentUser = auth.currentUser ?: return
+
+        viewModelScope.launch {
+            // Delega checagem e operação ao repositório
+            val application = Application(
+                jobId = jobId,
+                candidateId = currentUser.uid
+            )
+
+            val applied = try {
+                applicationRepository.tryApplyToJob(application, userRepository)
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao aplicar à vaga via repositório", e)
+                false
+            }
+
+            if (!applied) {
+                setApplyAlert("Complete seu cadastro para se candidatar à vaga.")
+                Log.d("JobsViewModel", "Usuário não completo - aplicação bloqueada para vaga $jobId")
+                return@launch
+            }
+
+            // Se chegou aqui, repositório aplicou com sucesso
+            _optimisticAppliedIds.update { it + jobId }
+            Log.d("JobsViewModel", "Aplicação enviada com sucesso para $jobId")
+        }
+    }
+
+    fun fetchJobs() {
+        // Método de conveniência: os listeners já estão conectados no init
+    }
+
+    // Public method to force fetching company jobs (one-shot) and merge into current jobs
+    fun fetchCompanyJobs() {
+        val uid = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                val myJobs = jobRepository.getJobPostingsByCompany(uid)
+                Log.d("JobsViewModel", "fetchCompanyJobs: got ${myJobs.size} jobs for uid=$uid")
+                if (myJobs.isNotEmpty()) {
+                    val current = _rawJobs.value
+                    val merged = (current + myJobs).distinctBy { it.id }
+                    _rawJobs.value = merged
+                }
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "fetchCompanyJobs failed", e)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Cancela collectors e remove auth listener
+        jobsCollectorJob?.cancel()
+        appliedIdsCollectorJob?.cancel()
+        countsCollectorJob?.cancel()
+        authListener?.let { auth.removeAuthStateListener(it) }
+    }
+
+    fun toggleApplication(jobId: String) {
+        applyToJob(jobId)
+    }
+
+    fun closeJob(jobId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                jobRepository.closeJob(jobId)
+                Log.d("JobsViewModel", "Vaga $jobId fechada com sucesso")
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao fechar vaga $jobId", e)
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -58,9 +251,17 @@ class JobsViewModel : ViewModel() {
         _uiState.update { it.copy(isSalaryNegotiable = newValue, salaryError = false) }
     }
     fun onImageUrlChange(newValue: String) { _uiState.update { it.copy(imageUrl = newValue) } }
+    fun onLatLongChange(lat: Double, long: Double) { _uiState.update { it.copy(latitude = lat, longitude = long) } }
 
     fun resetSuccessMessage() {
         _uiState.update { it.copy(isPostedSuccess = false) }
+    }
+
+    fun setApplyAlert(message: String?) {
+        _applyAlert.value = message
+    }
+    fun clearApplyAlert() {
+        _applyAlert.value = null
     }
 
     fun publishJob() {
@@ -75,175 +276,49 @@ class JobsViewModel : ViewModel() {
 
         if (hasError) return
 
-        val currentTimestamp = System.currentTimeMillis()
-        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-        val expirationTimestamp = currentTimestamp + thirtyDaysInMillis
-        val formattedDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(currentTimestamp))
+        val currentUser = auth.currentUser ?: return
 
-        val newJob = JobPosting(
-            id = UUID.randomUUID().toString(),
-            title = state.title,
-            company = "Minha Empresa (Demo)",
-            description = state.description,
-            location = state.location,
-            type = state.contractType, // Visual
-            contractType = state.contractType, // Lógico
-            salaryRange = if (state.isSalaryNegotiable) "A combinar" else state.salary,
-            isSalaryNegotiable = state.isSalaryNegotiable,
-            publishedAt = formattedDate,
-            datePosted = currentTimestamp,
-            expirationDate = expirationTimestamp,
-            isApplied = false,
-            imageUrl = state.imageUrl.ifBlank { null },
-            latitude = -4.9685, // Mock Quixadá Centro
-            longitude = -39.0150
-        )
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
 
-        _jobs.update { listOf(newJob) + it }
-        _uiState.update { PostJobUiState(isPostedSuccess = true) }
+            try {
+                // Delegamos a construção do JobPosting e persistência ao repository
+                jobRepository.publishJob(
+                    title = state.title,
+                    description = state.description,
+                    location = state.location,
+                    contractType = state.contractType,
+                    salary = state.salary,
+                    isSalaryNegotiable = state.isSalaryNegotiable,
+                    imageUrl = state.imageUrl.ifBlank { null },
+                    latitude = state.latitude,
+                    longitude = state.longitude,
+                    companyId = currentUser.uid,
+                    companyName = currentUser.displayName ?: "Empresa"
+                )
+
+                _uiState.update { it.copy(isPostedSuccess = true, isLoading = false) }
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao publicar vaga", e)
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
     }
 
-    private fun generateMockJobs(): List<JobPosting> {
-        val now = System.currentTimeMillis()
-        val thirtyDays = 30L * 24 * 60 * 60 * 1000
-
-        return listOf(
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Vendedor Interno",
-                company = "Loja Magazine",
-                description = "Responsável pelo atendimento ao cliente, organização de produtos e vendas internas. Necessário ensino médio completo.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.800 - R$ 2.500",
-                isSalaryNegotiable = false,
-                publishedAt = "30/09/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9685,
-                longitude = -39.0150
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Repositor de Mercadorias",
-                company = "Supermercado Central",
-                description = "Reposição de prateleiras, verificação de validade e organização de estoque.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.600 - R$ 2.000",
-                isSalaryNegotiable = false,
-                publishedAt = "04/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9700,
-                longitude = -39.0200
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Desenvolvedor Android Pleno",
-                company = "Startup Vision",
-                description = "Desenvolvimento de aplicativos nativos utilizando Kotlin e Jetpack Compose. Trabalho remoto.",
-                type = "PJ",
-                contractType = "PJ",
-                location = "Remoto",
-                salaryRange = "R$ 7.000 - R$ 9.000",
-                isSalaryNegotiable = true,
-                publishedAt = "01/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9793,
-                longitude = -39.0564
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Auxiliar Administrativo",
-                company = "Escritório Contábil Futuro",
-                description = "Auxílio nas rotinas do escritório, emissão de notas fiscais e atendimento telefônico.",
-                type = "Estágio",
-                contractType = "Estágio",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 800",
-                isSalaryNegotiable = false,
-                publishedAt = "10/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9750,
-                longitude = -39.0400
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Garçom / Garçonete",
-                company = "Restaurante Sabor do Sertão",
-                description = "Atendimento às mesas, anotar pedidos e servir clientes.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.500 + gorjetas",
-                isSalaryNegotiable = false,
-                publishedAt = "11/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9650,
-                longitude = -39.0100
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Técnico de Enfermagem",
-                company = "Hospital Eudásio Barroso",
-                description = "Atuar na assistência aos pacientes, administração de medicamentos e cuidados gerais.",
-                type = "Concurso",
-                contractType = "Concurso",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 2.200 - R$ 3.000",
-                isSalaryNegotiable = false,
-                publishedAt = "12/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9720,
-                longitude = -39.0250
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Professor de Inglês",
-                company = "Escola de Idiomas Wize",
-                description = "Ministrar aulas de inglês para turmas iniciantes e intermediárias.",
-                type = "Autônomo",
-                contractType = "Autônomo",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 30/hora",
-                isSalaryNegotiable = false,
-                publishedAt = "13/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9800,
-                longitude = -39.0500
-            ),
-            JobPosting(
-                id = UUID.randomUUID().toString(),
-                title = "Caixa de Loja",
-                company = "Farmácia Pague Menos",
-                description = "Operação de caixa, recebimento de valores e abertura/fechamento de caixa.",
-                type = "CLT",
-                contractType = "CLT",
-                location = "Quixadá, CE",
-                salaryRange = "R$ 1.412",
-                isSalaryNegotiable = false,
-                publishedAt = "14/10/2025",
-                datePosted = now,
-                expirationDate = now + thirtyDays,
-                isApplied = false,
-                latitude = -4.9690,
-                longitude = -39.0180
-            )
-        )
+    fun uploadImage(context: android.content.Context, uri: android.net.Uri) {
+        _isUploadingImage.value = true
+        viewModelScope.launch {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val imageUrl = jobRepository.uploadJobImage(bytes)
+                    onImageUrlChange(imageUrl)
+                }
+            } catch (e: Exception) {
+                Log.e("JobsViewModel", "Erro ao enviar imagem da vaga", e)
+            } finally {
+                _isUploadingImage.value = false
+            }
+        }
     }
 }

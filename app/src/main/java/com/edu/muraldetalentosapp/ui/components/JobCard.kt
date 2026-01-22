@@ -10,11 +10,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import com.edu.muraldetalentosapp.ui.model.JobPosting
+import coil.compose.AsyncImage
+import com.edu.muraldetalentosapp.data.model.JobPosting
 
 @Composable
-fun JobCard(job: JobPosting, onClick: () -> Unit) {
+fun JobCard(job: JobPosting, onClick: () -> Unit, applicationStatus: String? = null) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -27,6 +31,19 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
             Text(text = job.title, style = MaterialTheme.typography.titleMedium)
             Text(text = job.company, style = MaterialTheme.typography.bodyMedium)
 
+            if (!job.imageUrl.isNullOrBlank()) {
+                Spacer(Modifier.height(12.dp))
+                AsyncImage(
+                    model = job.imageUrl,
+                    contentDescription = "Imagem da vaga",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp) // Altura agradável para destaque
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
 
             AssistChip(
@@ -37,29 +54,45 @@ fun JobCard(job: JobPosting, onClick: () -> Unit) {
             Spacer(Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.LocationOn, contentDescription = null)
+                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(text = job.location)
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AttachMoney, contentDescription = null)
-                Text(text = job.salaryRange ?: "A combinar")
+                Icon(Icons.Default.AttachMoney, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(text = job.salaryRange.ifBlank { "A combinar" })
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                Text(text = "Publicada em ${job.publishedAt ?: "Data desconhecida"}")
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(text = "Publicada em ${job.publishedAt.ifBlank { "Data desconhecida" }}")
             }
 
             Spacer(Modifier.height(12.dp))
 
-            Button(
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                enabled = (job.isApplied == false)
-            ) {
-                Text(if (job.isApplied == true) "Candidatado" else "Candidatar-se")
+            // If the user's application for this job is rejected, show disabled red-light button
+            if (applicationStatus == "REJECTED") {
+                Button(
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = false,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE2E2), disabledContainerColor = Color(0xFFFEE2E2), contentColor = Color(0xFFB91C1C))
+                ) {
+                    Text("Rejeitado")
+                }
+            } else {
+                Button(
+                    onClick = onClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !job.isApplied
+                ) {
+                    Text(if (job.isApplied) "Candidatado" else "Candidatar-se")
+                }
             }
         }
     }

@@ -3,7 +3,6 @@ package com.edu.muraldetalentosapp.ui.screen
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -38,81 +37,41 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.edu.muraldetalentosapp.ui.theme.BluePrimary
-import com.edu.muraldetalentosapp.ui.theme.TextGray
-import com.edu.muraldetalentosapp.ui.theme.IconBlue
 import com.edu.muraldetalentosapp.ui.theme.BackgroundGray
+import com.edu.muraldetalentosapp.ui.theme.BluePrimary
+import com.edu.muraldetalentosapp.ui.theme.IconBlue
+import com.edu.muraldetalentosapp.ui.theme.TextGray
+// Importante: Importe o ViewModel correto e o Koin
+import com.edu.muraldetalentosapp.viewmodel.ProfileViewModel
+import org.koin.androidx.compose.koinViewModel
+
+// --- STATES (Mantenha os Data Classes aqui ou mova para um arquivo de State separado) ---
+
+enum class UploadState {
+    Idle, Uploading, Success, Error
+}
 
 data class ProfileUiState(
     val fullName: String = "",
     val email: String = "",
     val cpf: String = "",
     val fileName: String? = null,
+    val selectedFileUri: Uri? = null,
+    val uploadState: UploadState = UploadState.Idle,
     val emailError: String? = null,
     val cpfError: String? = null
 )
 
-class ProfileViewModel : ViewModel() {
-    var uiState by mutableStateOf(ProfileUiState())
-        private set
+// --- A CLASSE ProfileViewModel FOI REMOVIDA DAQUI POIS JÁ EXISTE EM viewmodel/ProfileViewModel.kt ---
 
-    fun onNameChange(newValue: String) { uiState = uiState.copy(fullName = newValue) }
-    fun onEmailChange(newValue: String) {
-        uiState = uiState.copy(email = newValue)
-        validateEmail()
-    }
-    fun onCpfChange(newValue: String) {
-        if (newValue.all { it.isDigit() } && newValue.length <= 11) {
-            uiState = uiState.copy(cpf = newValue)
-            validateCpf()
-        }
-    }
-
-    fun onFileSelected(name: String) {
-        uiState = uiState.copy(fileName = name)
-    }
-
-    private fun validateEmail() {
-        val email = uiState.email
-        val error = if (email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            "E-mail inválido"
-        } else {
-            null
-        }
-        uiState = uiState.copy(emailError = error)
-    }
-
-    private fun validateCpf() {
-        val cpf = uiState.cpf
-        val error = if (cpf.isNotEmpty() && cpf.length != 11) {
-            "CPF deve ter 11 dígitos"
-        } else {
-            null
-        }
-        uiState = uiState.copy(cpfError = error)
-    }
-
-    fun saveData() {
-        validateEmail()
-        validateCpf()
-        if (uiState.emailError == null && uiState.cpfError == null) {
-            println("Salvando: ${uiState}")
-        } else {
-            println("Dados inválidos, não foi possível salvar.")
-        }
-
-    }
-}
-
+// --- COMPOSE SCREEN ---
 
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = viewModel(),
+    // USE koinViewModel() PARA INJETAR O VIEWMODEL CORRETO (COM REPOSITORY)
+    viewModel: ProfileViewModel = koinViewModel(),
     onBackClick: () -> Unit = {},
     onNavigateToHome: () -> Unit = {}
-
 ) {
     val state = viewModel.uiState
     val context = LocalContext.current
@@ -122,17 +81,14 @@ fun ProfileScreen(
     ) { uri: Uri? ->
         uri?.let {
             val fileName = getFileName(context, it)
-            viewModel.onFileSelected(fileName)
+            viewModel.onFileSelected(it, fileName)
         }
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             SimpleTopBar(onBackClick = onBackClick)
-        },
-        bottomBar = {
-            // Botão fixo ou no final do scroll (na imagem parece parte do fluxo)
         }
     ) { paddingValues ->
         Column(
@@ -143,7 +99,6 @@ fun ProfileScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Seção Dados Pessoais
             SectionCard(
                 icon = Icons.Outlined.Person,
                 title = "Dados Pessoais",
@@ -175,40 +130,41 @@ fun ProfileScreen(
                 )
             }
 
-            // Seção Currículo
             SectionCard(
                 icon = Icons.Outlined.Description,
                 title = "Currículo",
                 subtitle = "Faça upload do seu currículo em PDF"
             ) {
                 Text(
-                    text = "Arquivo do Currículo (PDF) *",
+                    text = "Arquivo do Currículo (PDF)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
                 UploadBox(
                     fileName = state.fileName,
+                    uploadState = state.uploadState,
                     onUploadClick = { launcher.launch("application/pdf") }
                 )
 
                 Text(
                     text = "Tamanho máximo: 5MB",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botão Salvar
             Button(
                 onClick = {
-                    viewModel::saveData
-                    onNavigateToHome
+                    // ATUALIZADO: Passa a função de sucesso
+                    viewModel.saveData(context) {
+                        onNavigateToHome()
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -217,18 +173,37 @@ fun ProfileScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BluePrimary,
                     contentColor = Color.White
-                )
+                ),
+                enabled = state.uploadState != UploadState.Uploading && state.emailError == null && state.cpfError == null
             ) {
-                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Salvar Dados", fontSize = 16.sp)
+                when (state.uploadState) {
+                    UploadState.Uploading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Salvando...", fontSize = 16.sp)
+                    }
+                    UploadState.Success -> {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Salvo!", fontSize = 16.sp)
+                    }
+                    else -> {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Salvar Dados", fontSize = 16.sp)
+                    }
+                }
             }
 
             Text(
                 text = "* Campos obrigatórios",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
-                color = TextGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -236,6 +211,8 @@ fun ProfileScreen(
         }
     }
 }
+
+// --- FUNÇÕES AUXILIARES DE UI (MANTIDAS) ---
 
 private fun getFileName(context: Context, uri: Uri): String {
     var result: String? = null
@@ -255,17 +232,12 @@ private fun getFileName(context: Context, uri: Uri): String {
     if (result == null) {
         result = uri.path
         val cut = result?.lastIndexOf('/')
-        if (cut != -1) {
-            if (cut != null) {
-                result = result?.substring(cut + 1)
-            }
+        if (cut != null && cut != -1) {
+            result = result.substring(cut + 1)
         }
     }
     return result ?: "unknown"
 }
-
-
-// --- COMPONENTES REUTILIZÁVEIS ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -282,17 +254,17 @@ fun SimpleTopBar(onBackClick: () -> Unit) {
                 Text(
                     text = "Dados do candidato",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextGray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = MaterialTheme.colorScheme.onSurface)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
@@ -306,9 +278,11 @@ fun SectionCard(
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.LightGray), // A imagem parece ter uma borda sutil ou sombra, usando elevation padrão
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -316,21 +290,22 @@ fun SectionCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = IconBlue,
+                    tint = BluePrimary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextGray,
-                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp) // Alinha com titulo
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp)
             )
 
             content()
@@ -353,24 +328,27 @@ fun CustomTextField(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 4.dp)
         )
+
+        val borderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+
         TextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = TextGray) },
+            placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier
                 .fillMaxWidth()
                 .border(
                     width = 1.dp,
-                    color = if (isError) MaterialTheme.colorScheme.error else Color.LightGray,
+                    color = borderColor,
                     shape = RoundedCornerShape(8.dp)
                 ),
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 disabledContainerColor = BackgroundGray,
@@ -397,46 +375,63 @@ fun CustomTextField(
 @Composable
 fun UploadBox(
     fileName: String?,
+    uploadState: UploadState,
     onUploadClick: () -> Unit
 ) {
+    val strokeColor = MaterialTheme.colorScheme.outlineVariant
     val stroke = Stroke(
         width = 2f,
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
     )
+
+    val config = when (uploadState) {
+        UploadState.Uploading -> UploadStateConfig(Color(0xFFE0E0E0), Color.Gray, IconBlue, "Enviando...")
+        UploadState.Success -> UploadStateConfig(Color(0xFFC8E6C9), Color.Green, Color.Green, "Enviado com sucesso!")
+        UploadState.Error -> UploadStateConfig(Color(0xFFFFCDD2), Color.Red, Color.Red, "Erro ao enviar.")
+        else -> UploadStateConfig(Color.Transparent, if (fileName != null) Color.Black else TextGray, IconBlue, fileName ?: "Clique para selecionar")
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp)
             .drawBehind {
-                drawRoundRect(
-                    color = Color(0xFFD1D5DB), // Cinza claro
-                    style = stroke,
-                    cornerRadius = CornerRadius(8.dp.toPx())
-                )
+                drawRoundRect(color = strokeColor, style = stroke, cornerRadius = CornerRadius(8.dp.toPx()))
             }
-            .background(Color.Transparent)
-            .clickable { onUploadClick() },
+            .background(if (uploadState != UploadState.Idle) config.backgroundColor else Color.Transparent)
+            .clickable(enabled = uploadState != UploadState.Uploading) { onUploadClick() },
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Outlined.FileUpload,
+                imageVector = when (uploadState) {
+                    UploadState.Uploading, UploadState.Success, UploadState.Error -> Icons.Default.Check
+                    else -> Icons.Outlined.FileUpload
+                },
                 contentDescription = null,
-                tint = IconBlue
+                tint = config.iconTint
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = fileName ?: "Clique para selecionar o arquivo PDF",
-                color = if (fileName != null) Color.Black else TextGray,
+                color = if (fileName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
     }
 }
 
+private data class UploadStateConfig(
+    val backgroundColor: Color,
+    val textColor: Color,
+    val iconTint: Color,
+    val contentText: String
+)
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewProfile() {
-    ProfileScreen()
+    // Para preview, você precisaria mockar o viewModel, mas como usa koinViewModel,
+    // previews diretos podem quebrar sem configuração extra.
+    // Em produção, use Previews isolados passando state estático.
 }
