@@ -145,11 +145,10 @@ fun HomeScreen(
                     )
                 } else {
                     CandidateFeedContent(
-                        viewModel = viewModel,
-                        onNavigateToMap = onNavigateToMap
+                        viewModel = viewModel
                     )
                 }
-            }
-        }
-    }
-}
+             }
+         }
+     }
+ }
