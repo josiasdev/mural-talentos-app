@@ -74,6 +74,7 @@ class CandidatesRepository(private val db: FirebaseFirestore = FirebaseFirestore
         val sorted = candidatesList.sortedByDescending { it.appliedAt }
 
         val total = sorted.size
+        // status em CandidateUiModel é ApplicationStatus, comparar com enum
         val pending = sorted.count { it.status == ApplicationStatus.PENDING }
 
         return CandidatesResult(
@@ -105,6 +106,15 @@ class CandidatesRepository(private val db: FirebaseFirestore = FirebaseFirestore
     }
 
     suspend fun rejectApplication(applicationId: String) {
-        updateStatus(applicationId, ApplicationStatus.REJECTED.name)
+        // Busca o documento para obter candidateId e jobTitle antes de atualizar o status
+        val appSnapshot = db.collection("applications")
+            .document(applicationId)
+            .get()
+            .await()
+
+        val candidateId = appSnapshot.getString("candidateId") ?: return
+        val jobTitle = appSnapshot.getString("jobTitle") ?: "Vaga"
+
+        updateStatus(applicationId, ApplicationStatus.REJECTED.name, candidateId, jobTitle)
     }
 }

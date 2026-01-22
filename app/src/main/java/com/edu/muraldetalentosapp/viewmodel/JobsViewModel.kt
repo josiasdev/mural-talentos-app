@@ -105,7 +105,7 @@ class JobsViewModel : ViewModel() {
         jobsCollectorJob = viewModelScope.launch {
             Log.d("JobsViewModel", "Starting jobs listener (uid=$uid)")
             jobRepository.listenToActiveJobs().collect { list ->
-                Log.d("JobsViewModel", "Received ${list.size} jobs from repository")
+                Log.d("JobsViewModel", "Received ${'$'}{list.size} jobs from repository")
                 _rawJobs.value = list
             }
         }
@@ -116,11 +116,20 @@ class JobsViewModel : ViewModel() {
                 try {
                     val myJobs = jobRepository.getJobPostingsByCompany(uid)
                     if (myJobs.isNotEmpty()) {
-                        Log.d("JobsViewModel", "Fetched ${myJobs.size} company jobs via direct query for uid=$uid")
+                        Log.d("JobsViewModel", "Fetched ${'$'}{myJobs.size} company jobs via direct query for uid=$uid")
                         // Mescla com jobs atuais, preservando unicidade
                         val current = _rawJobs.value
                         val merged = (current + myJobs).distinctBy { it.id }
                         _rawJobs.value = merged
+
+                        // Inicia listener de contagens apenas para as vagas desta empresa
+                        countsCollectorJob?.cancel()
+                        countsCollectorJob = viewModelScope.launch {
+                            applicationRepository.listenToApplicationCountsForJobIds(myJobs.map { it.id }).collect { counts ->
+                                Log.d("JobsViewModel", "Received ${'$'}{counts.size} job counts for company")
+                                _jobApplicationCounts.value = counts
+                            }
+                        }
                     } else {
                         Log.d("JobsViewModel", "No company jobs found via direct query for uid=$uid")
                     }
@@ -142,17 +151,8 @@ class JobsViewModel : ViewModel() {
         appliedIdsCollectorJob = viewModelScope.launch {
             Log.d("JobsViewModel", "Starting appliedIds listener for uid=$uid")
             applicationRepository.listenToUserAppliedJobIds(uid).collect { ids ->
-                Log.d("JobsViewModel", "Received ${ids.size} applied ids")
+                Log.d("JobsViewModel", "Received ${'$'}{ids.size} applied ids")
                 _dbAppliedIds.value = ids
-            }
-        }
-
-        // Listener de contagens de candidaturas
-        countsCollectorJob = viewModelScope.launch {
-            Log.d("JobsViewModel", "Starting application counts listener")
-            applicationRepository.listenToApplicationCounts().collect { counts ->
-                Log.d("JobsViewModel", "Received ${counts.size} job counts")
-                _jobApplicationCounts.value = counts
             }
         }
 
@@ -203,11 +203,20 @@ class JobsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val myJobs = jobRepository.getJobPostingsByCompany(uid)
-                Log.d("JobsViewModel", "fetchCompanyJobs: got ${myJobs.size} jobs for uid=$uid")
+                Log.d("JobsViewModel", "fetchCompanyJobs: got ${'$'}{myJobs.size} jobs for uid=$uid")
                 if (myJobs.isNotEmpty()) {
                     val current = _rawJobs.value
                     val merged = (current + myJobs).distinctBy { it.id }
                     _rawJobs.value = merged
+
+                    // restart counts listener for these job ids
+                    countsCollectorJob?.cancel()
+                    countsCollectorJob = viewModelScope.launch {
+                        applicationRepository.listenToApplicationCountsForJobIds(myJobs.map { it.id }).collect { counts ->
+                            Log.d("JobsViewModel", "Received ${'$'}{counts.size} job counts for company")
+                            _jobApplicationCounts.value = counts
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("JobsViewModel", "fetchCompanyJobs failed", e)

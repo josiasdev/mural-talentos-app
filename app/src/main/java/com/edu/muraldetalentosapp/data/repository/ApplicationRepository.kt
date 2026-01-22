@@ -98,23 +98,47 @@ class ApplicationRepository {
         awaitClose { subscription.remove() }
     }
 
-    fun listenToApplicationCounts(): Flow<Map<String, Int>> = callbackFlow {
-        val subscription = applicationsCollection
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e("AppRepo", "listenToApplicationCounts error: ${error.message}")
-                    trySend(emptyMap())
-                    return@addSnapshotListener
+    // Novo: escuta contagens apenas para os jobIds fornecidos (permite cumprir regras de segurança)
+    fun listenToApplicationCountsForJobIds(jobIds: List<String>): Flow<Map<String, Int>> = callbackFlow {
+        if (jobIds.isEmpty()) {
+            trySend(emptyMap())
+            close()
+            return@callbackFlow
+        }
+
+        val listeners = mutableListOf<com.google.firebase.firestore.ListenerRegistration>()
+        val counts = mutableMapOf<String, Int>()
+
+        // Cria um listener para cada chunk de até 10 ids (limite do whereIn)
+        jobIds.chunked(10).forEach { chunk ->
+            val registration = applicationsCollection
+                .whereIn("jobId", chunk)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e("AppRepo", "listenToApplicationCountsForJobIds error: ${error.message}")
+                        // Em caso de erro de permissão, envia mapa vazio para a UI e continua (não fecha o flow)
+                        trySend(emptyMap())
+                        return@addSnapshotListener
+                    }
+
+                    // Atualiza contagens a partir dos documentos retornados neste chunk
+                    val grouped = snapshot?.documents
+                        ?.groupingBy { it.getString("jobId") ?: "" }
+                        ?.eachCount() ?: emptyMap()
+
+                    // Atualiza o mapa global
+                    synchronized(counts) {
+                        // Remove previous keys from this chunk to avoid stale counts
+                        chunk.forEach { counts.remove(it) }
+                        counts.putAll(grouped.filterKeys { it.isNotBlank() })
+                        trySend(counts.toMap())
+                    }
                 }
 
-                val counts = snapshot?.documents
-                    ?.groupBy { it.getString("jobId") ?: "" }
-                    ?.mapValues { it.value.size } ?: emptyMap()
+            listeners.add(registration)
+        }
 
-                trySend(counts)
-            }
-
-        awaitClose { subscription.remove() }
+        awaitClose { listeners.forEach { it.remove() } }
     }
 
     fun listenToUserApplicationStatuses(candidateId: String): Flow<Map<String, String>> = callbackFlow {

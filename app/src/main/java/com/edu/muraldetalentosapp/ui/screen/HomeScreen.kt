@@ -1,6 +1,7 @@
 package com.edu.muraldetalentosapp.ui.screen
 
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,7 +73,11 @@ fun HomeScreen(
     val notifications by notificationViewModel.notifications.collectAsState()
     var showSheet by remember { mutableStateOf(false) }
 
+    // Debug logs para diagnosticar carregamento de notificações
+    Log.d("HomeScreen", "notifications.size=${'$'}{notifications.size} unread=${'$'}{unreadCount} showSheet=${'$'}{showSheet}")
+
     if (showSheet) {
+        Log.d("HomeScreen", "Opening NotificationListSheet with ${'$'}{notifications.size} items")
         NotificationListSheet(
             notifications = notifications,
             onDismiss = { showSheet = false },
