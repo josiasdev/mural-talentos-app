@@ -1,6 +1,7 @@
 package com.edu.muraldetalentosapp.ui.screen
 
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,13 @@ import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
 import com.edu.muraldetalentosapp.ui.components.AccountType
 import androidx.compose.material.icons.filled.DarkMode // Ícone Lua
 import androidx.compose.material.icons.filled.LightMode // Ícone Sol
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.edu.muraldetalentosapp.viewmodel.NotificationViewModel
+import com.edu.muraldetalentosapp.ui.components.NotificationBell
+import com.edu.muraldetalentosapp.ui.components.NotificationListSheet
+import org.koin.androidx.compose.koinViewModel
 
 
 
@@ -51,7 +59,8 @@ fun HomeScreen(
     userType: AccountType?,
     viewModel: JobsViewModel,
     isDarkTheme: Boolean,
-    onThemeToggle: () -> Unit
+    onThemeToggle: () -> Unit,
+    notificationViewModel: NotificationViewModel = koinViewModel()
 ) {
     LaunchedEffect(Unit) {
         viewModel.fetchJobs()
@@ -59,6 +68,23 @@ fun HomeScreen(
 
     // Observa se há alerta de aplicação (usuário não completou cadastro)
     val applyAlert by viewModel.applyAlert.collectAsState()
+
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
+    val notifications by notificationViewModel.notifications.collectAsState()
+    var showSheet by remember { mutableStateOf(false) }
+
+    // Debug logs para diagnosticar carregamento de notificações
+    Log.d("HomeScreen", "notifications.size=${'$'}{notifications.size} unread=${'$'}{unreadCount} showSheet=${'$'}{showSheet}")
+
+    if (showSheet) {
+        Log.d("HomeScreen", "Opening NotificationListSheet with ${'$'}{notifications.size} items")
+        NotificationListSheet(
+            notifications = notifications,
+            onDismiss = { showSheet = false },
+            onMarkAsRead = { notificationViewModel.markAsRead(it) },
+            onMarkAllAsRead = { notificationViewModel.markAllAsRead() }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -96,6 +122,10 @@ fun HomeScreen(
                         IconButton(onClick = onNavigateToProfile) {
                             Icon(Icons.Default.Person, contentDescription = "Perfil", tint = BluePrimary)
                         }
+                        NotificationBell(
+                            unreadCount = unreadCount,
+                            onClick = { showSheet = true }
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

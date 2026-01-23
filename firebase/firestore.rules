@@ -47,5 +47,21 @@ service cloud.firestore {
                     get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.companyId == request.auth.uid;
       allow delete: if false;
     }
+
+    // notifications: cada usuário pode ler suas notificações; criação por serviços/usuários autenticados
+    match /notifications/{notificationId} {
+      // leitura apenas para o destinatário
+      allow read: if request.auth != null && resource.data.recipientId == request.auth.uid;
+
+      // criação permitido por qualquer usuário autenticado (ajuste se apenas servidor deva criar)
+      allow create: if request.auth != null;
+
+      // atualização (por exemplo marcar como lido) apenas pelo destinatário
+      allow update: if request.auth != null && resource.data.recipientId == request.auth.uid;
+
+      // deleção não permitida via cliente
+      allow delete: if false;
+    }
+
   }
 }

@@ -6,6 +6,7 @@ import com.edu.muraldetalentosapp.ui.model.CandidateUiModel
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import com.edu.muraldetalentosapp.data.model.ApplicationStatus
+import com.edu.muraldetalentosapp.data.model.Notification
 
 // Resultado com lista de candidatos e metadados
 data class CandidatesResult(
@@ -14,7 +15,9 @@ data class CandidatesResult(
     val pendingCount: Int
 )
 
-class CandidatesRepository(private val db: FirebaseFirestore) {
+class CandidatesRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
+
+    private val notificationRepository = NotificationRepository()
 
     suspend fun getCandidatesForJob(jobId: String): CandidatesResult {
         val applicationsSnapshot = db.collection("applications")
@@ -71,6 +74,7 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
         val sorted = candidatesList.sortedByDescending { it.appliedAt }
 
         val total = sorted.size
+        // status em CandidateUiModel é ApplicationStatus, comparar com enum
         val pending = sorted.count { it.status == ApplicationStatus.PENDING }
 
         return CandidatesResult(
@@ -80,14 +84,37 @@ class CandidatesRepository(private val db: FirebaseFirestore) {
         )
     }
 
-    suspend fun updateStatus(applicationId: String, newStatus: String) {
+    suspend fun updateStatus(
+        applicationId: String,
+        newStatus: String,
+        candidateId: String,
+        jobTitle: String
+    ) {
         db.collection("applications")
             .document(applicationId)
             .update("status", newStatus)
             .await()
+
+        val notification = Notification(
+            recipientId = candidateId,
+            title = "Status Atualizado: $jobTitle",
+            message = "Sua candidatura mudou para: $newStatus. Verifique seu progresso.",
+            jobId = applicationId
+        )
+
+        notificationRepository.createNotification(notification)
     }
 
     suspend fun rejectApplication(applicationId: String) {
-        updateStatus(applicationId, ApplicationStatus.REJECTED.name)
+        // Busca o documento para obter candidateId e jobTitle antes de atualizar o status
+        val appSnapshot = db.collection("applications")
+            .document(applicationId)
+            .get()
+            .await()
+
+        val candidateId = appSnapshot.getString("candidateId") ?: return
+        val jobTitle = appSnapshot.getString("jobTitle") ?: "Vaga"
+
+        updateStatus(applicationId, ApplicationStatus.REJECTED.name, candidateId, jobTitle)
     }
 }

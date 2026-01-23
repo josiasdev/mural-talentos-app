@@ -3,11 +3,13 @@ package com.edu.muraldetalentosapp.di
 import com.edu.muraldetalentosapp.data.repository.ApplicationRepository
 import com.edu.muraldetalentosapp.data.repository.CandidatesRepository
 import com.edu.muraldetalentosapp.data.repository.JobPostingRepository
+import com.edu.muraldetalentosapp.data.repository.NotificationRepository
 import com.edu.muraldetalentosapp.data.repository.UserRepository
 import com.edu.muraldetalentosapp.viewmodel.AuthViewModel
 import com.edu.muraldetalentosapp.viewmodel.CandidateSearchViewModel
 import com.edu.muraldetalentosapp.viewmodel.CandidatesViewModel
 import com.edu.muraldetalentosapp.viewmodel.JobsViewModel
+import com.edu.muraldetalentosapp.viewmodel.NotificationViewModel
 import com.edu.muraldetalentosapp.viewmodel.ProfileViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -20,6 +22,7 @@ val appModule = module {
 
     single { JobPostingRepository() }
     single { ApplicationRepository() }
+    single { NotificationRepository() }
 
 
     single { UserRepository() }
@@ -48,4 +51,5 @@ val appModule = module {
             userRepository = get()
         )
     }
+    viewModel { NotificationViewModel(repository = get()) }
 }
